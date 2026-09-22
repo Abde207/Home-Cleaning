@@ -1,0 +1,73 @@
+name: Foundation validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+      - run: npm run security:scan
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: npm
+      - run: npm ci
+      - run: node scripts/init-local.mjs
+      - run: docker compose config --quiet
+      - run: docker compose up --wait -d postgres redis
+      - run: npm run prisma:validate
+      - run: npm run build:backend
+      - run: npm run test:unit
+      - run: npm test
+      - run: npm run test:database
+      - if: always()
+        run: docker compose down
+
+  admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck -w @home-clean/admin
+      - run: npm run test -w @home-clean/admin
+      - run: npm run build:admin
+
+  flutter:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [customer_flutter, provider_flutter]
+    defaults:
+      run:
+        working-directory: mobile/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-pub
+      - run: flutter test --no-pub
+      - run: flutter build apk --debug --no-pub --dart-define-from-file=config/development.example.json

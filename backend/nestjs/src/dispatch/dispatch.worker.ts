@@ -13,7 +13,7 @@ export class DispatchWorker implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     if (process.env.NODE_ENV === 'test' || process.env.DISPATCH_WORKER_ENABLED === 'false') return;
-    this.timer = setInterval(() => { void this.runOnce().catch(error => this.logger.error(error)); }, 10_000);
+    this.timer = setInterval(() => { void this.runOnce().catch(() => this.logger.error('Dispatch sweep failed')); }, 10_000);
     this.timer.unref();
   }
 
@@ -34,7 +34,7 @@ export class DispatchWorker implements OnModuleInit, OnModuleDestroy {
       let succeeded = 0, failed = 0;
       for (const row of rows) {
         try { await this.dispatch.systemOffer(row.id); succeeded++; }
-        catch (error) { failed++; this.logger.warn(`Dispatch retry failed for ${row.id}: ${error instanceof Error ? error.message : String(error)}`); }
+        catch (error) { failed++; this.logger.warn(`Dispatch retry failed for ${row.id}: ${error instanceof Error ? error.name : 'UnknownError'}`); }
       }
       return { processed: rows.length, succeeded, failed, busy: false };
     } finally { this.running = false; }

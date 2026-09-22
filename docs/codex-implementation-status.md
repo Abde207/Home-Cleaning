@@ -1,5 +1,9 @@
 # Home Clean implementation status
 
+## Phase 15 Batch 1 foundation — implemented and locally validated; Git commit blocked
+
+Phase 15B/15H/15I add repository CI gates and a high-confidence secret scan; staging/production PostgreSQL and Redis TLS/credential policy; durable notification claim recovery, bounded outbox failures, redacted worker errors and focused restart/concurrency tests. PostgreSQL remains authoritative. No schema, migration, real provider, production infrastructure or deployment was changed. Local backend, database, Admin, Flutter, Compose, secret and separate-process Dispatch gates passed; hosted CI and production services were not exercised. Managed data services, real provider credentials, live push deduplication, Admin shared refresh coordination and production operations remain open. This workspace denies `.git/index.lock` creation, so normal commits and synchronization remain blocked. See [Batch 1 report](phase15-batch1-foundation-report.md) for exact validation results and limitations.
+
 ## Phase 15A production configuration foundation — COMPLETE for scoped validation
 
 Phase 15A now has four explicit environment profiles, backend startup validation, public Flutter build profiles and startup URL validation, server-only Admin configuration validation, local-only Compose labeling, and an environment/secret-handling guide. The mock payment webhook fallback was removed and the existing private local `.env` was given a generated webhook secret. Seven existing migrations remain untouched. Production backend startup deliberately fails closed until a real payment adapter exists. Scoped validation passed: backend build, 42/42 unit, 27/27 isolated full test files (73 assertions), database checker 16 integrity assertions, Prisma validation, Admin typecheck/16 tests/build, Customer 57 tests/analyze/debug APK, Provider 74 tests/analyze/debug APK, and Compose config. See [Phase 15A report](phase15a-production-configuration-report.md) for exact commands and remaining blockers. The earlier read-only audit's “Phase 15 not started” statements below are historical.
@@ -361,7 +365,7 @@ Full command results: [validation-2026-09-19.md](validation-2026-09-19.md).
 
 ## Current Phase
 
-**Production Decisions Audit COMPLETE; Phase 15 NOT STARTED.** Phase 14A–14H, Phases 5–11, Customer 12A–12E, and Provider 13A–13D remain complete. See the [Phase 14H report](phase14h-e2e-hardening-report.md) and [production-decisions.md](production-decisions.md).
+**Historical checkpoint: Production Decisions Audit complete before Phase 15A.** Phase 14A–14H, Phases 5–11, Customer 12A–12E, and Provider 13A–13D remain complete. Current Phase 15 status is at the top of this file. See the [Phase 14H report](phase14h-e2e-hardening-report.md) and [production-decisions.md](production-decisions.md).
 
 ## Final Stop Point
 

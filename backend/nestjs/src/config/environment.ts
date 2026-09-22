@@ -36,8 +36,18 @@ export function validateEnvironment(input: Record<string, unknown>): BackendEnvi
   if (!host || /[\s/:]/.test(host)) throw new Error('HOST is required and must be a hostname or IP address');
   const databaseUrl = required(input, 'DATABASE_URL');
   const redisUrl = required(input, 'REDIS_URL');
-  serviceUrl(databaseUrl, 'DATABASE_URL', ['postgres:', 'postgresql:']);
-  serviceUrl(redisUrl, 'REDIS_URL', ['redis:', 'rediss:']);
+  const database = serviceUrl(databaseUrl, 'DATABASE_URL', ['postgres:', 'postgresql:']);
+  const redis = serviceUrl(redisUrl, 'REDIS_URL', ['redis:', 'rediss:']);
+  if (environment === 'staging' || environment === 'production') {
+    const local = (host: string) => ['localhost', '127.0.0.1', '::1'].includes(host.toLowerCase());
+    if (local(database.hostname) || database.searchParams.has('host') ||
+        database.searchParams.get('sslmode') !== 'require' || database.searchParams.get('sslaccept') !== 'strict')
+      throw new Error('DATABASE_URL must use a nonlocal host and verified TLS');
+    if (local(redis.hostname) || redis.protocol !== 'rediss:')
+      throw new Error('REDIS_URL must target managed Redis with TLS');
+    if (!database.username || !database.password || !redis.password)
+      throw new Error('Database and Redis credentials are required');
+  }
   const origins = String(input.CORS_ORIGINS ?? '').split(',').map(s => s.trim()).filter(Boolean);
   if (!origins.length) throw new Error('CORS_ORIGINS must list allowed browser origins');
   for (const origin of origins) {

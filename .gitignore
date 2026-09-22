@@ -10,6 +10,11 @@ coverage/
 *.p8
 *.p12
 *.pem
+*.pfx
+*.key
+*.cer
+*.crt
+*.mobileprovision
 **/android/key.properties
 **/config/*.json
 !**/config/*.example.json

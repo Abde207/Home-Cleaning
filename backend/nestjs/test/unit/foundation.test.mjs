@@ -18,10 +18,16 @@ test('configuration rejects absent dependencies and unsafe production origins', 
   assert.throws(() => validateEnvironment({ ...valid, PAYMENT_WEBHOOK_SECRET: '' }), /PAYMENT_WEBHOOK_SECRET/);
   assert.throws(() => validateEnvironment({ ...valid, APP_ENVIRONMENT: 'staging' }), /inconsistent/);
   assert.throws(() => validateEnvironment({ ...valid, DISPATCH_WORKER_ENABLED: 'maybe' }), /DISPATCH_WORKER_ENABLED/);
-  const staging = { ...valid, NODE_ENV: 'production', APP_ENVIRONMENT: 'staging', HOST: '0.0.0.0', PORT: '3001', CORS_ORIGINS: 'https://admin.example.test', OTP_DELIVERY_MODE: 'twilio', TWILIO_ACCOUNT_SID: `AC${'a'.repeat(32)}`, TWILIO_AUTH_TOKEN: 'dummy-token', TWILIO_FROM: '+962000000000', PAYMENT_PROVIDER: 'mock' };
+  const staging = { ...valid, NODE_ENV: 'production', APP_ENVIRONMENT: 'staging', HOST: '0.0.0.0', PORT: '3001',
+    DATABASE_URL: 'postgresql://example:placeholder@db.example.test/app?sslmode=require&sslaccept=strict',
+    REDIS_URL: 'rediss://:placeholder@redis.example.test:6380', CORS_ORIGINS: 'https://admin.example.test',
+    OTP_DELIVERY_MODE: 'twilio', TWILIO_ACCOUNT_SID: `AC${'a'.repeat(32)}`, TWILIO_AUTH_TOKEN: 'dummy-token', TWILIO_FROM: '+962000000000', PAYMENT_PROVIDER: 'mock' };
   assert.equal(validateEnvironment(staging).HOST, '0.0.0.0');
   assert.throws(() => validateEnvironment({ ...staging, OTP_DELIVERY_MODE: 'file' }), /local-only/);
   assert.throws(() => validateEnvironment({ ...staging, CORS_ORIGINS: 'http://admin.example.test' }), /CORS_ORIGINS/);
+  assert.throws(() => validateEnvironment({ ...staging, DATABASE_URL: valid.DATABASE_URL }), /DATABASE_URL/);
+  assert.throws(() => validateEnvironment({ ...staging, DATABASE_URL: staging.DATABASE_URL.replace('sslaccept=strict', 'sslaccept=accept_invalid_certs') }), /DATABASE_URL/);
+  assert.throws(() => validateEnvironment({ ...staging, REDIS_URL: valid.REDIS_URL }), /REDIS_URL/);
   assert.throws(() => validateEnvironment({ ...staging, APP_ENVIRONMENT: 'production' }), /not implemented/);
 });
 

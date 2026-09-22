@@ -14,6 +14,7 @@
     "test": "node --env-file=.env scripts/test-backend.mjs",
     "test:unit": "npm run build:backend && node --test --test-isolation=none backend/nestjs/test/unit/*.test.mjs",
     "test:database": "node --env-file=.env --import tsx scripts/check-database.mjs",
+    "security:scan": "node scripts/check-secrets.mjs",
     "dev:backend": "npm run dev -w @home-clean/backend",
     "dev:admin": "npm run dev -w @home-clean/admin",
     "prisma:validate": "npm run prisma:validate -w @home-clean/backend",

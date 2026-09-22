@@ -9,13 +9,15 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
   constructor(@Inject(NotificationService) private readonly notifications: NotificationService) {}
   onModuleInit() {
     if (process.env.NODE_ENV === 'test' || process.env.NOTIFICATION_WORKER_ENABLED === 'false') return;
-    this.timer = setInterval(() => { void this.runOnce().catch(error => this.logger.error(error)); }, 5_000); this.timer.unref();
+    this.timer = setInterval(() => { void this.runOnce().catch(() => this.logger.error('Notification sweep failed')); }, 5_000); this.timer.unref();
   }
   onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
   async runOnce() {
     if (this.running) return { busy: true };
     this.running = true;
-    try { const outbox = await this.notifications.processOutboxOnce(); const deliveries = await this.notifications.processDeliveriesOnce(); return { busy: false, outbox, deliveries }; }
+    try { const outbox = await this.notifications.processOutboxOnce(); const deliveries = await this.notifications.processDeliveriesOnce();
+      if (outbox.failed || deliveries.failed || deliveries.retried) this.logger.warn(`Notification sweep: ${outbox.failed} outbox failures, ${deliveries.failed} deliveries failed, ${deliveries.retried} scheduled for retry`);
+      return { busy: false, outbox, deliveries }; }
     finally { this.running = false; }
   }
 }

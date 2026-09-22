@@ -1,5 +1,11 @@
 # Home Clean implementation changelog
 
+## 2026-09-22 — Phase 15 Batch 1 foundation
+
+- Added CI validation for backend, Prisma, isolated database regressions, Admin and both Flutter apps; added a secret/private-file scan and environment separation documentation. Staging/production runtime now requires nonlocal credentialed PostgreSQL with verified TLS and nonlocal credentialed Redis over TLS. Production still rejects the mock payment adapter.
+- Kept PostgreSQL as the worker source of truth. Notification claims now use bounded leases and recover after interruption; outbox selection is transactional and failed materialization attempts are counted with a retry cap. Worker logs and delivery records use generic failure codes. Added a focused isolated recovery/concurrency test and documented the unavoidable external push ambiguity after a crash between send and commit.
+- No database schema, migration, API contract, mobile app behavior, Admin behavior, external provider connection or production deployment changed. Exact local validation and environment limitations are in [Batch 1 report](phase15-batch1-foundation-report.md).
+
 ## 2026-09-22 — Phase 15A production configuration foundation
 
 - Audited Backend, Admin, both Flutter apps, workers, Prisma/PostgreSQL, Redis, local Compose, scripts and CI presence. Added explicit development/test/staging/production configuration boundaries and validation, with local defaults confined to development/test.

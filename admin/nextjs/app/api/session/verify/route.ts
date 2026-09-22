@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       || typeof body.code !== 'string' || !/^\d{6}$/.test(body.code)) {
       throw new ApiError(400, 'VALIDATION_INVALID_INPUT', 'Enter the challenge and six-digit code.');
     }
-    const tokens = await backendRequest<Tokens>('/auth/verify-otp', { method: 'POST', body, requestId: request.headers.get('x-request-id') ?? undefined });
+    const tokens = await backendRequest<Tokens>('/auth/admin/verify-otp', { method: 'POST', body, requestId: request.headers.get('x-request-id') ?? undefined });
     if (!validTokens(tokens)) throw new ApiError(503, 'SYSTEM_ERROR', 'Invalid token response.');
     const identity = await backendRequest<Identity>('/auth/me', { accessToken: tokens.accessToken });
     if (!isPlatformAdmin(identity)) {
@@ -24,4 +24,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: { id: identity.id, locale: identity.locale } }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) { return routeError(error); }
 }
-

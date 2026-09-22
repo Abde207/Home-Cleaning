@@ -36,6 +36,8 @@ class BookingText {
   String get cancelQuestion => ar ? 'هل تريد طلب إلغاء الحجز؟' : 'Request cancellation of this booking?';
   String get retryPayment => ar ? 'إعادة محاولة الدفع' : 'Retry payment';
   String get paymentPending => ar ? 'الدفع الإلكتروني قيد الانتظار. تحقق من الحالة لاحقاً.' : 'Online payment is pending. Refresh to check its status.';
+  String get openCheckout => ar ? 'فتح صفحة الدفع الآمنة' : 'Open secure checkout';
+  String get checkoutUnavailable => ar ? 'تعذر فتح صفحة الدفع. حاول مرة أخرى.' : 'Could not open checkout. Try again.';
   String get mockGateway => ar ? 'رابط الدفع الحالي تجريبي ولا يدعم إتمام الدفع داخل التطبيق.' : 'The current checkout URL is a backend mock and cannot complete payment in the app.';
   String get newBooking => ar ? 'حجز جديد' : 'New booking';
   String get rooms => ar ? 'الغرف' : 'Rooms';

@@ -382,3 +382,6 @@ Phase 14H implementation and validation closeout and the read-only Production De
 - Exact `npm.cmd run test:database` and `npm.cmd test` were rerun and remain blocked before assertions by `spawnSync node.exe EPERM` and Prisma engine download/child-process restrictions. Phase 5 application acceptance passes; the exact wrapper gate remains blocked.
 
 The historical notes above predate the completed Phase 8 checkpoint at the top. Current exact `npm.cmd test` passes 50/50; separate-process worker validation passes 1/1; native Prisma status/deploy and the separate `test:database` wrapper remain environment-blocked.
+# Phase 15 Batch 2 (2026-09-23)
+
+External-service adapter work is **partial and not production ready**. Twilio Verify, Tap charge/webhook/refund adapter, FCM HTTP v1, scoped tracking and private storage interfaces are in the working tree. Maps and storage providers remain undecided; production startup fails closed. Tap recovery/refund reconciliation, mobile push/GPS integration, chat/complaint attachment domains and provider certification are outstanding. See [Batch 2 report](phase15-batch2-external-services-report.md).

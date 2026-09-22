@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../application/booking/booking_controller.dart';
 import '../../core/errors/app_exception.dart';
@@ -132,6 +133,8 @@ class _BookingPageState extends State<BookingPage> with WidgetsBindingObserver {
       BookingStatusChip(status: d.status), BookingDetailCard(booking: d), BookingTimeline(booking: d),
       if (d.status == 'TEAM_ON_THE_WAY') Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(t.noLiveLocation)),
       if (payment?.method == 'ONLINE' && payment?.status == 'PENDING') ...[Text(t.paymentPending), if (c.initiatedPayment?.checkoutUrl?.contains('mock-payments.invalid') == true) Text(t.mockGateway)],
+      if (payment?.method == 'ONLINE' && payment?.status == 'PENDING' && c.initiatedPayment?.checkoutUrl?.startsWith('https://') == true && c.initiatedPayment?.checkoutUrl?.contains('mock-payments.invalid') != true)
+        OutlinedButton(onPressed: _openCheckout, child: Text(t.openCheckout)),
       if (d.paymentMethod == 'CASH') Text(t.cashNotice),
       const SizedBox(height: 12), AppButton(label: t.refresh, busy: c.loading, onPressed: c.loading ? null : c.refreshDetail),
       if (payment?.method == 'ONLINE' && payment?.status == 'FAILED') OutlinedButton(onPressed: c.submitting ? null : c.retryPayment, child: Text(t.retryPayment)),
@@ -173,5 +176,14 @@ class _BookingPageState extends State<BookingPage> with WidgetsBindingObserver {
     final t = BookingText(context);
     final ok = await showDialog<bool>(context: context, builder: (context) => AlertDialog(content: Text(t.cancelQuestion), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppLocalizations.of(context).cancel)), FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(t.cancelBooking))]));
     if (ok == true) await widget.controller.cancel();
+  }
+
+  Future<void> _openCheckout() async {
+    final value = widget.controller.initiatedPayment?.checkoutUrl;
+    if (value == null) return;
+    final uri = Uri.tryParse(value);
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty || uri.userInfo.isNotEmpty) return;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(BookingText(context).checkoutUnavailable)));
   }
 }

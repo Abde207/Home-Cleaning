@@ -37,6 +37,10 @@ test('OTP authentication, lockout, role injection rejection, rotation replay and
     assert.equal((await fetch(`${base}/auth/me`)).status, 401);
     assert.equal((await post('/auth/request-otp', { phone: '+962790000000', role: 'HOME_CLEAN_ADMIN' })).status, 400);
     const first = await requestCode();
+    assert.equal((await post('/auth/admin/verify-otp', { challengeId: first.challengeId, code: first.code })).status, 401);
+    assert.equal((await post('/auth/provider/verify-otp', { challengeId: first.challengeId, code: first.code })).status, 401);
+    assert.equal((await post('/auth/admin/request-otp', { phone: first.phone })).status, 401);
+    assert.equal((await post('/auth/provider/request-otp', { phone: first.phone })).status, 401);
     const success = await post('/auth/verify-otp', { challengeId: first.challengeId, code: first.code });
     assert.equal(success.status, 200);
     const tokens = success.body.data;

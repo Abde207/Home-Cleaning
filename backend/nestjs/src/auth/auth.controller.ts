@@ -11,6 +11,14 @@ export class AuthController {
   requestOtp(@Body() dto: RequestOtpDto, @Req() req: Request) { return this.auth.requestOtp(dto.phone, req.ip ?? 'unknown'); }
   @Public() @Post('verify-otp') @HttpCode(200) @Header('Cache-Control', 'no-store')
   verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: Request) { return this.auth.verifyOtp(dto.challengeId, dto.code, req.ip ?? 'unknown'); }
+  @Public() @Post('provider/request-otp') @HttpCode(202) @Header('Cache-Control', 'no-store')
+  requestProviderOtp(@Body() dto: RequestOtpDto, @Req() req: Request) { return this.auth.requestOtp(dto.phone, req.ip ?? 'unknown', 'provider'); }
+  @Public() @Post('provider/verify-otp') @HttpCode(200) @Header('Cache-Control', 'no-store')
+  verifyProviderOtp(@Body() dto: VerifyOtpDto, @Req() req: Request) { return this.auth.verifyOtp(dto.challengeId, dto.code, req.ip ?? 'unknown', 'provider'); }
+  @Public() @Post('admin/request-otp') @HttpCode(202) @Header('Cache-Control', 'no-store')
+  requestAdminOtp(@Body() dto: RequestOtpDto, @Req() req: Request) { return this.auth.requestOtp(dto.phone, req.ip ?? 'unknown', 'admin'); }
+  @Public() @Post('admin/verify-otp') @HttpCode(200) @Header('Cache-Control', 'no-store')
+  verifyAdminOtp(@Body() dto: VerifyOtpDto, @Req() req: Request) { return this.auth.verifyOtp(dto.challengeId, dto.code, req.ip ?? 'unknown', 'admin'); }
   @Public() @Post('refresh') @HttpCode(200) @Header('Cache-Control', 'no-store')
   refresh(@Body() dto: RefreshDto, @Req() req: Request) { return this.auth.refresh(dto.refreshToken, req.ip ?? 'unknown'); }
   @Post('logout') @HttpCode(200)

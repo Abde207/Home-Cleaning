@@ -194,3 +194,11 @@ See [session evidence](validation-2026-09-19.md) and [current status](codex-impl
 - Application/database validation: BLOCKED, no manifests/schema/migrations/seed or application source. No dependencies installed and no database modified.
 - Next step: recover existing Phase 12A code or confirm a fresh foundation, then complete Phase 1 before starting Phase 2.
 
+# 2026-09-23 — Phase 15 Batch 2 external services (partial)
+
+- Added Twilio Verify OTP provider and role-specific Customer, Provider and Admin challenge routes; updated Admin and Provider clients.
+- Added Tap JOD hosted charge/refund and signed charge webhook adapter with stable idempotency references.
+- Added FCM HTTP v1 sender through the Firebase APNs bridge, stale-token retirement and delivery collapse hints.
+- Added Customer Flutter HTTPS hosted checkout launch via `url_launcher`; success still comes only from the backend webhook.
+- Added scoped team tracking and GPS arrival event using existing Team coordinates; added routing/storage interfaces and a private local media adapter.
+- Added adapter/security tests and documentation. Production remains fail-closed pending maps/storage decisions and the Batch 2 gaps in the implementation report. No migration, commit, push, deployment or real external request occurred.

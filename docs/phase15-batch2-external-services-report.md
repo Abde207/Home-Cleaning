@@ -1,0 +1,28 @@
+# Phase 15 Batch 2 — external services implementation report
+
+Date: 2026-09-23. Status: **partial; not production ready**. Work remains in the working tree. No production credential, external transaction, deployment, migration, or production infrastructure was used.
+
+## Implemented
+
+- Twilio Messages was replaced by a Verify v2 adapter behind `OtpProvider`. Local file OTP remains deterministic. Customer, Provider and Admin use distinct challenge-bound endpoints; provider/admin identities must already hold the required role. The existing server-side Redis limits, five attempts and five-minute local challenge lifetime remain. Admin BFF and Provider Flutter now call their respective endpoints.
+- Tap adapter creates JOD hosted checkout charges with a stable attempt idempotency reference, validates its response, verifies Tap `hashstring` over charge fields, and hands accepted events to the existing server-authoritative webhook transaction. Existing amount/currency/attempt/reference matching, event uniqueness, replay handling and cash/settlement paths remain. Refund calls use a stable refund ID and accept only a confirmed `REFUNDED` response; pending/failed responses cannot become local success.
+- FCM HTTP v1 sender uses a server-only service identity and OAuth token. The selected iOS path is Firebase's APNs bridge. The notification outbox remains authoritative; delivery IDs are passed as Android/APNs collapse keys, invalid registrations are retired, and tokens unseen for 60 days are retired before send. Push payloads contain event labels and IDs, without addresses or payment details.
+- Added scoped team-location update and customer tracking reads using existing Team coordinates. Reads require booking ownership and `TEAM_ON_THE_WAY`, return only the accepted assignment's team, hide pre-start coordinates, and mark stale data. A configurable geofence records one `GPS_ARRIVED` event with target/actual arrival and delay. No booking state is changed by the client coordinate.
+- Customer Flutter can open a validated HTTPS Tap checkout URL in the external browser and then refresh backend payment status; mock checkout remains visibly unavailable. Added the `url_launcher` Flutter dependency and updated its lockfile.
+- Added routing and private object-storage interfaces plus a local private storage adapter with generated keys, MIME magic-byte checks, ownership-reference check on read, and size bounds. Production startup rejects mock maps/local storage. Customer Android main manifest now declares INTERNET.
+- Added fake-network adapter tests, configuration checks, tracking boundary tests, and storage validation tests. No new package dependency was added.
+
+## Material gaps before production
+
+1. **Tap recovery:** Charge and refund HTTP calls are still inside database transactions. Stable IDs and Tap's documented 24-hour idempotency reduce duplicate operations after rollback, but a provider success followed by an uncommitted local transaction, or a retry after the 24-hour window, needs a durable reconciliation process. Refund responses that are pending require asynchronous status handling and a signed refund callback. Exceptional refunds need explicit staff/approver governance and recorded fields. No live money rail should run until these are implemented and certified in Tap sandbox.
+2. **Push/mobile:** Both Flutter apps lack Firebase Messaging token acquisition, permission prompts, native app configuration and device validation. Firebase's APNs bridge requires Apple/Firebase project configuration outside the repository. FCM collapse is best-effort; a push accepted before the DB success commit can still appear twice. Chat presence/suppression is unavailable because chat is not implemented in this repository.
+3. **Maps/ETA:** No maps vendor has been approved. Address geocoding remains deterministic and routing ETA unavailable; production fails closed. The new location endpoint has no GPS publishing or map display integration in Flutter. Provider location attestation and anti-spoofing policy remain to be decided.
+4. **Storage/media:** No storage vendor is approved and no production adapter is selected. Existing schema has completion-proof metadata, but no chat or complaint attachments, conversations or upload/download authorization model. The local adapter is deliberately not exposed as an API. Retention, malware scanning and authorized access endpoints require those domain decisions. Completion photos are not mandatory.
+5. **OTP:** Twilio test account, service policy and sandbox device testing are outstanding. A Verify approval followed by a DB commit failure can require a fresh OTP challenge; no credentialed provider behavior was exercised.
+6. **Operations:** Production startup remains blocked by maps/storage selections. Managed services, signed releases, hosted CI, live provider certification, monitoring and legal Merchant of Record confirmation remain separate gates.
+
+## Provider documentation checked
+
+- [Twilio Verify API](https://www.twilio.com/docs/verify/api), [Verification Check](https://www.twilio.com/docs/verify/api/verification-check)
+- [Tap charge checkout](https://developers.tap.company/reference/charges), [webhook hashstring](https://developers.tap.company/docs/webhook), [idempotency](https://developers.tap.company/docs/idempotency), [refunds](https://developers.tap.company/reference/refunds)
+- [Firebase HTTP v1](https://firebase.google.com/docs/cloud-messaging/send/v1-api), [registration management](https://firebase.google.com/docs/cloud-messaging/manage-tokens), [APNs notification requests](https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns)

@@ -141,6 +141,11 @@ export class NotificationService {
         await tx.notificationDelivery.update({ where: { id }, data: { status: 'FAILED', lastError: 'DEVICE_TOKEN_INACTIVE' } });
         return null;
       }
+      if (row.deviceToken.lastSeenAt < new Date(Date.now() - 60 * 86400_000)) {
+        await tx.deviceToken.update({ where: { id: row.deviceToken.id }, data: { active: false, invalidatedAt: new Date() } });
+        await tx.notificationDelivery.update({ where: { id }, data: { status: 'FAILED', lastError: 'DEVICE_TOKEN_STALE' } });
+        return null;
+      }
       const attemptNumber = row.attempts + 1;
       await tx.notificationDelivery.update({ where: { id }, data: { status: 'SENDING', attempts: attemptNumber,
         nextAttemptAt: new Date(Date.now() + DELIVERY_LEASE_MS), lastError: null } });
@@ -160,7 +165,9 @@ export class NotificationService {
       const payload = claimed.notification.payload as Record<string, any>;
       let result: { providerReference: string };
       try {
-        result = await this.push.send({ token: claimed.deviceToken.token, title: String(payload.title ?? 'Home Clean'), body: String(payload.body ?? ''), data: (payload.data ?? {}) as Record<string, string> });
+        result = await this.push.send({ token: claimed.deviceToken.token, platform: claimed.deviceToken.platform,
+          deliveryId: row.id, title: String(payload.title ?? 'Home Clean'), body: String(payload.body ?? ''),
+          data: (payload.data ?? {}) as Record<string, string> });
       } catch (error) {
         const invalid = error instanceof InvalidPushTokenError;
         const terminal = invalid || claimed.attemptNumber >= MAX_DELIVERY_ATTEMPTS;

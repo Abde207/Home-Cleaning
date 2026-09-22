@@ -33,9 +33,10 @@ export class PaymentWebhookController {
   @Public()
   @Post(':provider')
   @HttpCode(200)
-  webhook(@Param('provider') provider: string, @Headers('x-payment-signature') signature: string | undefined, @Req() req: RawRequest) {
+  webhook(@Param('provider') provider: string, @Headers('x-payment-signature') mockSignature: string | undefined,
+    @Headers('hashstring') tapSignature: string | undefined, @Req() req: RawRequest) {
     if (!req.rawBody) throw new Error('Raw webhook body was not captured');
-    return this.payments.webhook(provider, req.rawBody, signature);
+    return this.payments.webhook(provider, req.rawBody, provider === 'tap' ? tapSignature : mockSignature);
   }
 }
 

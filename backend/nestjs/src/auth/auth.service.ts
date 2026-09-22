@@ -16,6 +16,9 @@ export class AuthService {
     @Inject(OtpSender) private readonly sender: OtpSender,
   ) {}
   private digest(value: string) { return createHmac('sha256', this.config.getOrThrow<string>('OTP_HASH_SECRET')).update(value).digest('hex'); }
+  private challengeHash(audience: 'customer' | 'provider' | 'admin', id: string, code: string) {
+    return ({ customer: 'c', provider: 'p', admin: 'a' }[audience]) + this.digest(`${audience}:${id}:${code}`).slice(0, 63);
+  }
 
   private async limit(label: string, value: string, maximum: number) {
     const key = `homeclean:auth:${label}:${this.digest(value)}`;
@@ -23,13 +26,20 @@ export class AuthService {
     if (Number(count) > maximum) throw new HttpException({ code: 'AUTH_RATE_LIMITED', message: 'Try again later.' }, 429);
   }
 
-  async requestOtp(phone: string, ip: string) {
+  async requestOtp(phone: string, ip: string, audience: 'customer' | 'provider' | 'admin' = 'customer') {
     await this.limit('request-ip', ip, 20);
     await this.limit('request-phone', phone, 3);
+    const existing = await this.db.user.findUnique({ where: { phone }, include: { roles: { include: { role: true } } } });
+    if (audience !== 'customer') {
+      const allowed = audience === 'admin' ? ['HOME_CLEAN_ADMIN'] : ['COMPANY_MANAGER', 'TEAM_LEADER_CLEANER'];
+      if (!existing || existing.status !== 'ACTIVE' || !existing.roles.some(grant => allowed.includes(grant.role.name)))
+        throw new UnauthorizedException({ code: 'AUTH_IDENTITY_UNAVAILABLE' });
+    } else if (existing && (existing.status !== 'ACTIVE' || !existing.roles.some(grant => grant.role.name === 'CUSTOMER')))
+      throw new UnauthorizedException({ code: 'AUTH_IDENTITY_UNAVAILABLE' });
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
     const id = randomUUID();
     const expiresAt = new Date(Date.now() + 5 * 60_000);
-    await this.db.otpChallenge.create({ data: { id, phone, codeHash: this.digest(`${id}:${code}`), expiresAt } });
+    await this.db.otpChallenge.create({ data: { id, phone, codeHash: this.challengeHash(audience, id, code), expiresAt } });
     try { await this.sender.send(id, phone, code, expiresAt); }
     catch (error) { await this.db.otpChallenge.update({ where: { id }, data: { usedAt: new Date() } }); throw error; }
     return { challengeId: id, expiresAt };
@@ -43,23 +53,30 @@ export class AuthService {
     return { accessToken, refreshToken, accessExpiresAt, refreshExpiresAt: expiresAt, tokenType: 'Bearer' };
   }
 
-  async verifyOtp(challengeId: string, code: string, ip: string) {
+  async verifyOtp(challengeId: string, code: string, ip: string, audience: 'customer' | 'provider' | 'admin' = 'customer') {
     await this.limit('verify-ip', ip, 60);
     const result = await this.db.$transaction(async tx => {
       const rows = await tx.$queryRaw<OtpChallenge[]>`SELECT * FROM "OtpChallenge" WHERE id = ${challengeId}::uuid FOR UPDATE`;
       const challenge = rows[0];
-      if (!challenge || challenge.usedAt || challenge.expiresAt <= new Date() || challenge.attempts >= 5) return null;
-      const valid = timingSafeEqual(Buffer.from(challenge.codeHash, 'hex'), Buffer.from(this.digest(`${challengeId}:${code}`), 'hex'));
+      if (!challenge || challenge.usedAt || challenge.expiresAt <= new Date() || challenge.attempts >= 5 ||
+          challenge.codeHash[0] !== ({ customer: 'c', provider: 'p', admin: 'a' }[audience])) return null;
+      const valid = this.sender.remote
+        ? await this.sender.verify(challenge.phone, code)
+        : timingSafeEqual(Buffer.from(challenge.codeHash), Buffer.from(this.challengeHash(audience, challengeId, code)));
       if (!valid) {
         await tx.otpChallenge.update({ where: { id: challengeId }, data: { attempts: { increment: 1 } } });
         return null;
       }
       await tx.otpChallenge.update({ where: { id: challengeId }, data: { usedAt: new Date() } });
-      const role = await tx.role.findUniqueOrThrow({ where: { name: 'CUSTOMER' } });
-      const user = await tx.user.upsert({
+      const role = audience === 'customer' ? await tx.role.findUniqueOrThrow({ where: { name: 'CUSTOMER' } }) : null;
+      const user = audience === 'customer' ? await tx.user.upsert({
         where: { phone: challenge.phone }, update: {},
-        create: { phone: challenge.phone, customer: { create: {} }, roles: { create: { roleId: role.id } } },
-      });
+        create: { phone: challenge.phone, customer: { create: {} }, roles: { create: { roleId: role!.id } } },
+      }) : await tx.user.findUnique({ where: { phone: challenge.phone }, include: { roles: { include: { role: true } } } });
+      if (!user) return null;
+      if (audience === 'customer' && !(await tx.userRole.findFirst({ where: { userId: user.id, role: { name: 'CUSTOMER' } } }))) return null;
+      if (audience === 'admin' && !(await tx.userRole.findFirst({ where: { userId: user.id, role: { name: 'HOME_CLEAN_ADMIN' }, companyId: null, teamId: null } }))) return null;
+      if (audience === 'provider' && !(await tx.userRole.findFirst({ where: { userId: user.id, role: { name: { in: ['COMPANY_MANAGER', 'TEAM_LEADER_CLEANER'] } } } }))) return null;
       if (user.status !== 'ACTIVE') return null;
       return this.issue(tx, user.id);
     });

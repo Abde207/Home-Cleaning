@@ -8,6 +8,17 @@ export interface GeocodingProvider {
   reverseGeocode(latitude: number, longitude: number): Promise<GeoPoint>;
 }
 
+export interface RoutingProvider {
+  readonly name: string;
+  etaSeconds(from: GeoPoint, to: GeoPoint): Promise<number | null>;
+}
+
+/** Local tests can explicitly model an unavailable road route. */
+export class UnavailableRoutingProvider implements RoutingProvider {
+  readonly name = 'unavailable-local';
+  async etaSeconds(_from: GeoPoint, _to: GeoPoint) { return null; }
+}
+
 /** Deterministic local provider: tests and local development need no map credentials. */
 export class DeterministicGeocodingProvider implements GeocodingProvider {
   readonly name = 'deterministic-local';

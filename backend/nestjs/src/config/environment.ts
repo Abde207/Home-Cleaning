@@ -5,7 +5,7 @@ export type BackendEnvironment = Record<string, unknown> & {
   NODE_ENV: 'development' | 'test' | 'production'; APP_ENVIRONMENT: AppEnvironment;
   PORT: number; HOST: string; DATABASE_URL: string; REDIS_URL: string;
   CORS_ORIGINS: string[]; OTP_HASH_SECRET: string; OTP_DELIVERY_MODE: 'file' | 'twilio';
-  PAYMENT_PROVIDER: 'mock'; PAYMENT_WEBHOOK_SECRET: string;
+  PAYMENT_PROVIDER: 'mock' | 'tap'; PAYMENT_WEBHOOK_SECRET?: string;
 };
 
 function required(input: Record<string, unknown>, key: string): string {
@@ -62,12 +62,40 @@ export function validateEnvironment(input: Record<string, unknown>): BackendEnvi
   if (deliveryMode !== 'file' && deliveryMode !== 'twilio') throw new Error('OTP_DELIVERY_MODE must be file or twilio');
   if ((environment === 'staging' || environment === 'production') && deliveryMode === 'file') throw new Error('File OTP delivery is local-only');
   if (deliveryMode === 'twilio' && (!/^AC[0-9a-f]{32}$/i.test(String(input.TWILIO_ACCOUNT_SID)) ||
-      !input.TWILIO_AUTH_TOKEN || !input.TWILIO_FROM)) throw new Error('Twilio configuration is incomplete');
+      !/^VA[0-9a-f]{32}$/i.test(String(input.TWILIO_VERIFY_SERVICE_SID)) ||
+      !input.TWILIO_AUTH_TOKEN)) throw new Error('Twilio Verify configuration is incomplete');
   const provider = String(input.PAYMENT_PROVIDER ?? (environment === 'development' || environment === 'test' ? 'mock' : ''));
-  if (provider !== 'mock') throw new Error('PAYMENT_PROVIDER is unsupported');
-  if (environment === 'production') throw new Error('Production payment provider is not implemented');
-  const webhookSecret = required(input, 'PAYMENT_WEBHOOK_SECRET');
-  if (webhookSecret.length < 32) throw new Error('PAYMENT_WEBHOOK_SECRET must contain at least 32 characters');
+  if (provider !== 'mock' && provider !== 'tap') throw new Error('PAYMENT_PROVIDER is unsupported');
+  if (environment === 'production' && provider !== 'tap') throw new Error('Production requires Tap payment provider');
+  const webhookSecret = provider === 'mock' ? required(input, 'PAYMENT_WEBHOOK_SECRET') : undefined;
+  if (webhookSecret && webhookSecret.length < 32) throw new Error('PAYMENT_WEBHOOK_SECRET must contain at least 32 characters');
+  if (provider === 'tap') {
+    if (!/^sk_(test|live)_[A-Za-z0-9]+$/.test(required(input, 'TAP_SECRET_KEY'))) throw new Error('TAP_SECRET_KEY is invalid');
+    if (environment === 'production' && !String(input.TAP_SECRET_KEY).startsWith('sk_live_')) throw new Error('Production requires a live Tap key');
+    if (environment !== 'production' && String(input.TAP_SECRET_KEY).startsWith('sk_live_')) throw new Error('Live Tap key outside production');
+    for (const key of ['TAP_WEBHOOK_URL', 'TAP_REDIRECT_URL']) {
+      const url = serviceUrl(required(input, key), key, ['https:']);
+      if (url.username || url.password || url.search || url.hash) throw new Error(`${key} must be a clean HTTPS URL`);
+    }
+  }
+  const pushProvider = String(input.PUSH_PROVIDER ?? 'mock');
+  if (environment === 'staging' || environment === 'production') {
+    for (const key of ['PAYMENT_PROVIDER', 'PUSH_PROVIDER', 'MAPS_PROVIDER', 'STORAGE_PROVIDER']) required(input, key);
+  }
+  if (!['mock', 'fcm_apns'].includes(pushProvider)) throw new Error('PUSH_PROVIDER is unsupported');
+  if (environment === 'production' && pushProvider === 'mock') throw new Error('Production push provider is required');
+  if (pushProvider === 'fcm_apns') {
+    for (const key of ['FCM_PROJECT_ID', 'FCM_CLIENT_EMAIL', 'FCM_PRIVATE_KEY']) required(input, key);
+    if (input.IOS_PUSH_TRANSPORT !== 'fcm_apns') throw new Error('IOS_PUSH_TRANSPORT must explicitly select the Firebase APNs bridge');
+  }
+  const mapsProvider = String(input.MAPS_PROVIDER ?? 'mock');
+  const storageProvider = String(input.STORAGE_PROVIDER ?? 'local');
+  if (mapsProvider !== 'mock' || storageProvider !== 'local') throw new Error('Maps/storage production provider selection is pending');
+  if (environment === 'production') throw new Error('Production maps and object storage providers are pending');
+  for (const [key, fallback, min, max] of [['ARRIVAL_GEOFENCE_METERS', 100, 10, 1000], ['TRACKING_STALE_SECONDS', 120, 30, 3600]] as const) {
+    const value = Number(input[key] ?? fallback);
+    if (!Number.isInteger(value) || value < min || value > max) throw new Error(`${key} is invalid`);
+  }
   dispatchConfig(input as NodeJS.ProcessEnv);
   for (const key of ['DISPATCH_WORKER_ENABLED', 'NOTIFICATION_WORKER_ENABLED']) {
     if (input[key] !== undefined && !['true', 'false'].includes(String(input[key]))) throw new Error(`${key} must be true or false`);

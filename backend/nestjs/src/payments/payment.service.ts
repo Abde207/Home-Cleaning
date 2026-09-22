@@ -3,7 +3,7 @@ import { Prisma, type PaymentStatus } from '@prisma/client';
 import { PrismaService } from '../database/database.module.js';
 import type { Actor } from '../auth/authorization.js';
 import { audit } from '../core/core.policy.js';
-import { MockPaymentProvider, type PaymentProvider } from './payment.provider.js';
+import { MockPaymentProvider, TapPaymentProvider, type PaymentProvider } from './payment.provider.js';
 import type { CreatePaymentDto, PaymentRefundDto } from './payment.dto.js';
 import { createHash } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
@@ -12,6 +12,10 @@ type Tx = Prisma.TransactionClient;
 
 function jsonValue(value: unknown): Prisma.InputJsonValue { return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue; }
 function requestHash(value: unknown) { return createHash('sha256').update(JSON.stringify(value)).digest('hex'); }
+function stableUuid(value: string) {
+  const hex = createHash('sha256').update(value).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
 function permission(actor: Actor, code: string) { return actor.scopes.some(scope => scope.permissions.includes(code)); }
 function anyPermission(actor: Actor, codes: string[]) { return codes.some(code => permission(actor, code)); }
 
@@ -20,7 +24,9 @@ export class PaymentService {
   private readonly provider: PaymentProvider;
 
   constructor(@Inject(PrismaService) private readonly db: PrismaService, @Inject(ConfigService) config: ConfigService) {
-    this.provider = new MockPaymentProvider(config.getOrThrow<string>('PAYMENT_WEBHOOK_SECRET'));
+    this.provider = config.get('PAYMENT_PROVIDER') === 'tap'
+      ? new TapPaymentProvider(config.getOrThrow('TAP_SECRET_KEY'), config.getOrThrow('TAP_WEBHOOK_URL'), config.getOrThrow('TAP_REDIRECT_URL'))
+      : new MockPaymentProvider(config.getOrThrow<string>('PAYMENT_WEBHOOK_SECRET'));
   }
 
   private requireKey(key: string | undefined) {
@@ -111,7 +117,7 @@ export class PaymentService {
       if (payment.status === 'CONFIRMED' || payment.status === 'RECONCILED') throw new ConflictException({ code: 'PAYMENT_ALREADY_CONFIRMED' });
       const existing = payment.attempts.find(attempt => attempt.requestKey === this.requireKey(key));
       if (existing?.providerReference) return this.paymentResponse(payment, existing);
-      const attempt = existing ?? await tx.paymentAttempt.create({ data: { paymentId: payment.id, provider: this.provider.name, attemptNumber: payment.attempts.length + 1, status: 'INITIATED', requestKey: this.requireKey(key), amount: payment.amount, currency: payment.currency } });
+      const attempt = existing ?? await tx.paymentAttempt.create({ data: { id: stableUuid(`payment-create:${actor.userId}:${booking.id}:${this.requireKey(key)}`), paymentId: payment.id, provider: this.provider.name, attemptNumber: payment.attempts.length + 1, status: 'INITIATED', requestKey: this.requireKey(key), amount: payment.amount, currency: payment.currency } });
       const created = await this.provider.createPayment({ paymentId: payment.id, attemptId: attempt.id, amount: payment.amount.toString(), currency: payment.currency, bookingNumber: booking.bookingNumber });
       const updatedAttempt = await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { status: 'PENDING', providerReference: created.providerReference, checkoutUrl: created.checkoutUrl } });
       const updatedPayment = await tx.payment.update({ where: { id: payment.id }, data: { provider: this.provider.name, transactionReference: created.providerReference } });
@@ -126,7 +132,7 @@ export class PaymentService {
       const payment = await this.lockPayment(tx, paymentId);
       if (permission(actor, 'payment:own') && !permission(actor, 'payment:manage') && payment.booking.customerId !== (await tx.customer.findUnique({ where: { userId: actor.userId }, select: { id: true } }))?.id) throw new NotFoundException();
       if (payment.method !== 'ONLINE' || payment.status !== 'FAILED' || payment.booking.status !== 'PAYMENT_PENDING') throw new ConflictException({ code: 'PAYMENT_RETRY_NOT_ALLOWED' });
-      const attempt = await tx.paymentAttempt.create({ data: { paymentId, provider: this.provider.name, attemptNumber: payment.attempts.length + 1, status: 'INITIATED', requestKey: this.requireKey(key), amount: payment.amount, currency: payment.currency } });
+      const attempt = await tx.paymentAttempt.create({ data: { id: stableUuid(`payment-retry:${actor.userId}:${paymentId}:${this.requireKey(key)}`), paymentId, provider: this.provider.name, attemptNumber: payment.attempts.length + 1, status: 'INITIATED', requestKey: this.requireKey(key), amount: payment.amount, currency: payment.currency } });
       await this.paymentHistory(tx, payment.id, 'FAILED', 'PENDING', 'ONLINE_PAYMENT_RETRY', actor.userId);
       await tx.payment.update({ where: { id: payment.id }, data: { status: 'PENDING' } });
       const created = await this.provider.createPayment({ paymentId, attemptId: attempt.id, amount: payment.amount.toString(), currency: payment.currency, bookingNumber: payment.booking.bookingNumber });
@@ -154,6 +160,7 @@ export class PaymentService {
         const payment = await tx.payment.findUniqueOrThrow({ where: { id: attempt.paymentId }, include: { booking: true } });
         const amount = new Prisma.Decimal(event.amount);
         const amountMatches = amount.eq(payment.amount) && event.currency === payment.currency;
+        if (event.attemptId !== undefined && event.attemptId !== attempt.id) throw new ConflictException({ code: 'PAYMENT_ATTEMPT_REFERENCE_MISMATCH' });
         const eventType = event.type === 'SUCCEEDED' ? 'PAYMENT_CONFIRMED' : 'PAYMENT_FAILED';
         await tx.paymentEvent.create({ data: { paymentId: payment.id, provider: providerName, eventId: event.eventId, type: amountMatches ? eventType : 'PAYMENT_REJECTED_AMOUNT', payloadHash: event.payloadHash, signatureVerified: true, verifiedAt: new Date() } });
         if (!amountMatches) {
@@ -217,7 +224,7 @@ export class PaymentService {
       const successful = payment.refunds.filter(refund => refund.status === 'SUCCEEDED').reduce((sum, refund) => sum.add(refund.amount), new Prisma.Decimal(0));
       const pending = payment.refunds.filter(refund => refund.status === 'PENDING').reduce((sum, refund) => sum.add(refund.amount), new Prisma.Decimal(0));
       if (!amount.gt(0) || amount.gt(payment.amount.sub(successful).sub(pending))) throw new ConflictException({ code: 'REFUND_OVER_LIMIT' });
-      const refund = await tx.refund.create({ data: { paymentId, amount, reason: dto.reason, ...(payment.method === 'ONLINE' ? { provider: this.provider.name } : {}) } });
+      const refund = await tx.refund.create({ data: { id: stableUuid(`refund:${actor.userId}:${paymentId}:${this.requireKey(key)}`), paymentId, amount, reason: dto.reason, ...(payment.method === 'ONLINE' ? { provider: this.provider.name } : {}) } });
       await tx.refundHistory.create({ data: { refundId: refund.id, previousStatus: null, newStatus: 'PENDING', reason: dto.reason } });
       await tx.outboxEvent.create({ data: { type: 'REFUND_CREATED', aggregateId: refund.id, payload: jsonValue({ refundId: refund.id, paymentId, bookingId: payment.bookingId, status: 'PENDING' }) } });
       await this.bookingTransition(tx, actor.userId, payment.booking, 'REFUND_PENDING', 'BOOKING_REFUND_REQUESTED', { command: 'CreateRefund', refundId: refund.id });

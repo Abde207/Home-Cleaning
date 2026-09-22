@@ -10,7 +10,7 @@ class AuthRemoteDataSource {
   Future<AuthChallenge> requestOtp(String phone) async {
     final data =
         await _client.post(
-              '/auth/request-otp',
+              '/auth/provider/request-otp',
               body: {'phone': phone},
               authenticated: false,
             )
@@ -27,7 +27,7 @@ class AuthRemoteDataSource {
   }) async {
     final data =
         await _client.post(
-              '/auth/verify-otp',
+              '/auth/provider/verify-otp',
               body: {'challengeId': challengeId, 'code': code},
               authenticated: false,
             )

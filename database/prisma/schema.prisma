@@ -1,0 +1,936 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum RoleName {
+  CUSTOMER
+  COMPANY_MANAGER
+  TEAM_LEADER_CLEANER
+  HOME_CLEAN_ADMIN
+  DISPATCHER
+}
+
+enum CompanyStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum TeamStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+  PAUSED
+}
+
+enum BookingStatus {
+  REQUESTED
+  PRICE_CONFIRMED
+  PAYMENT_PENDING
+  CASH_SELECTED
+  PAYMENT_CONFIRMED
+  SEARCHING_FOR_TEAM
+  TEAM_ASSIGNED
+  TEAM_ACCEPTED
+  TEAM_ON_THE_WAY
+  CLEANING_STARTED
+  CLEANING_COMPLETED
+  PAYMENT_RECONCILIATION
+  COMPLETED
+  CANCELLED
+  NO_TEAM_AVAILABLE
+  REJECTED
+  TEAM_NO_SHOW
+  CUSTOMER_NO_SHOW
+  REFUND_PENDING
+  REFUNDED
+}
+
+enum AssignmentStatus {
+  OFFERED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentMethod {
+  ONLINE
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  CASH_SELECTED
+  CASH_COLLECTED
+  RECONCILED
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum SettlementStatus {
+  DRAFT
+  CALCULATED
+  READY_FOR_REVIEW
+  APPROVED
+  PARTIALLY_PAID
+  PAID
+  RECONCILED
+  CLOSED
+  CANCELLED
+  REVERSED
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id             String         @id @default(uuid()) @db.Uuid
+  phone          String         @unique @db.VarChar(20)
+  name           String?        @db.VarChar(120)
+  status         UserStatus     @default(ACTIVE)
+  locale         String         @default("ar") @db.VarChar(5)
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @db.Timestamptz(3)
+  customer       Customer?
+  roles          UserRole[]
+  memberships    TeamMember[]
+  deviceTokens   DeviceToken[]
+  notifications  Notification[]
+  statusHistory  BookingStatusHistory[]
+  auditLogs      AuditLog[]
+  sessions       Session[]
+  cashCollections CashCollection[]
+  paymentStatusChanges PaymentStatusHistory[]
+  settlementStatusChanges SettlementHistory[]
+  settlementReconciliations SettlementReconciliation[]
+  idempotencyKeys IdempotencyKey[]
+}
+
+model Role {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        RoleName         @unique
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id    String           @id @default(uuid()) @db.Uuid
+  code  String           @unique @db.VarChar(100)
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String     @db.Uuid
+  permissionId String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  roleId    String   @db.Uuid
+  companyId String?  @db.Uuid
+  teamId    String?  @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  @@index([userId])
+  @@index([companyId, teamId])
+}
+
+model Customer {
+  pricingQuotes PricingQuote[]
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @unique @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  addresses Address[]
+  properties Property[]
+  bookings  Booking[]
+  ratings   Rating[]
+  tickets   SupportTicket[]
+}
+
+model Company {
+  id             String        @id @default(uuid()) @db.Uuid
+  internalCode   String        @unique @db.VarChar(40)
+  name           String        @db.VarChar(160)
+  status         CompanyStatus @default(PENDING)
+  commissionRate Decimal       @db.Decimal(5,4)
+  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(3)
+  teams          Team[]
+  roles          UserRole[]
+  assignments    Assignment[]
+  serviceAreas   CompanyServiceArea[]
+  payables       ProviderPayable[]
+  settlements    Settlement[]
+  cashCollections CashCollection[]
+  @@index([status])
+}
+
+model Team {
+  id             String       @id @default(uuid()) @db.Uuid
+  companyId      String       @db.Uuid
+  internalCode   String       @unique @db.VarChar(40)
+  name           String       @db.VarChar(120)
+  status         TeamStatus   @default(OFFLINE)
+  active         Boolean      @default(true)
+  capacity       Int          @default(1)
+  latitude       Decimal?     @db.Decimal(10,7)
+  longitude      Decimal?     @db.Decimal(10,7)
+  locationAt     DateTime?    @db.Timestamptz(3)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  members        TeamMember[]
+  roles          UserRole[]
+  availability   TeamAvailability[]
+  capabilities   TeamServiceCapability[]
+  assignments    Assignment[]
+  cashCollections CashCollection[]
+  @@unique([id, companyId])
+  @@index([companyId, status])
+}
+
+model TeamMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  teamId    String   @db.Uuid
+  userId    String   @db.Uuid
+  name      String   @db.VarChar(120)
+  role      String   @db.VarChar(40)
+  active    Boolean  @default(true)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@unique([teamId, userId])
+}
+
+model TeamAvailability {
+  id        String   @id @default(uuid()) @db.Uuid
+  teamId    String   @db.Uuid
+  startsAt  DateTime @db.Timestamptz(3)
+  endsAt    DateTime @db.Timestamptz(3)
+  available Boolean  @default(true)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  @@index([teamId, startsAt, endsAt])
+}
+
+model CompanyServiceArea {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @db.Uuid
+  name      String   @db.VarChar(120)
+  latitude  Decimal  @db.Decimal(10,7)
+  longitude Decimal  @db.Decimal(10,7)
+  radiusKm  Decimal  @db.Decimal(8,3)
+  active    Boolean  @default(true)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  @@index([companyId, active])
+}
+
+model Service {
+  id              String     @id @default(uuid()) @db.Uuid
+  code            String     @unique @db.VarChar(60)
+  name            String     @db.VarChar(120)
+  nameAr          String     @db.VarChar(120)
+  description     String?
+  active          Boolean    @default(false)
+  basePrice       Decimal    @db.Decimal(12,2)
+  durationMinutes Int
+  createdAt       DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime   @updatedAt @db.Timestamptz(3)
+  extras          ServiceExtra[]
+  bookings        Booking[]
+  capabilities    TeamServiceCapability[]
+  @@index([active])
+}
+
+model ServiceExtra {
+  id          String  @id @default(uuid()) @db.Uuid
+  serviceId   String  @db.Uuid
+  code        String  @db.VarChar(60)
+  name        String  @db.VarChar(120)
+  nameAr      String  @db.VarChar(120)
+  price       Decimal @db.Decimal(12,2)
+  active      Boolean @default(false)
+  service     Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  bookingExtras BookingExtra[]
+  @@unique([serviceId, code])
+  @@index([serviceId, active])
+}
+
+model TeamServiceCapability {
+  teamId    String  @db.Uuid
+  serviceId String  @db.Uuid
+  team      Team    @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  @@id([teamId, serviceId])
+}
+
+model Address {
+  id          String   @id @default(uuid()) @db.Uuid
+  customerId  String   @db.Uuid
+  label       String   @db.VarChar(80)
+  addressText String
+  latitude    Decimal  @db.Decimal(10,7)
+  longitude   Decimal  @db.Decimal(10,7)
+  isDefault   Boolean  @default(false)
+  validationStatus String @default("VERIFIED") @db.VarChar(30)
+  geocodedAt  DateTime? @db.Timestamptz(3)
+  geocodingProvider String? @db.VarChar(80)
+  archivedAt  DateTime? @db.Timestamptz(3)
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  bookings    Booking[]
+  @@unique([id, customerId])
+  @@index([customerId])
+}
+
+model Property {
+  id         String   @id @default(uuid()) @db.Uuid
+  customerId String   @db.Uuid
+  type       String   @db.VarChar(40)
+  size       Decimal  @db.Decimal(10,2)
+  rooms      Int
+  bathrooms  Int
+  archivedAt DateTime? @db.Timestamptz(3)
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  bookings   Booking[]
+  @@unique([id, customerId])
+  @@index([customerId])
+}
+
+model Booking {
+  quoteConsumption QuoteConsumption?
+  id                String        @id @default(uuid()) @db.Uuid
+  bookingNumber     String        @unique @db.VarChar(40)
+  customerId        String        @db.Uuid
+  serviceId         String        @db.Uuid
+  propertyId        String        @db.Uuid
+  addressId         String        @db.Uuid
+  scheduledAt       DateTime      @db.Timestamptz(3)
+  estimatedEndAt    DateTime      @db.Timestamptz(3)
+  status            BookingStatus @default(REQUESTED)
+  paymentMethod     PaymentMethod?
+  price             Decimal       @db.Decimal(12,2)
+  currency          String        @default("JOD") @db.VarChar(3)
+  addressSnapshot   Json          @db.JsonB
+  propertySnapshot  Json          @db.JsonB
+  serviceSnapshot   Json          @db.JsonB
+  locationLatitude  Decimal       @db.Decimal(10,7)
+  locationLongitude Decimal       @db.Decimal(10,7)
+  instructions      String?
+  version           Int           @default(0)
+  createdAt         DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime      @updatedAt @db.Timestamptz(3)
+  customer          Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  service           Service       @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  property          Property      @relation(fields: [propertyId, customerId], references: [id, customerId], onDelete: Restrict)
+  address           Address       @relation(fields: [addressId, customerId], references: [id, customerId], onDelete: Restrict)
+  extras            BookingExtra[]
+  priceSnapshot     BookingPriceSnapshot?
+  history           BookingStatusHistory[]
+  assignments       Assignment[]
+  dispatchAttempts  DispatchAttempt[]
+  payments          Payment[]
+  payable           ProviderPayable?
+  notifications     Notification[]
+  rating            Rating?
+  tickets           SupportTicket[]
+  @@unique([id, customerId])
+  @@index([customerId, createdAt])
+  @@index([status, scheduledAt])
+  @@index([serviceId, scheduledAt])
+}
+
+model BookingExtra {
+  id             String        @id @default(uuid()) @db.Uuid
+  bookingId      String        @db.Uuid
+  serviceExtraId String?       @db.Uuid
+  name           String        @db.VarChar(120)
+  quantity       Int           @default(1)
+  price          Decimal       @db.Decimal(12,2)
+  booking        Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  serviceExtra   ServiceExtra? @relation(fields: [serviceExtraId], references: [id], onDelete: Restrict)
+  @@index([bookingId])
+}
+
+model BookingPriceSnapshot {
+  id             String   @id @default(uuid()) @db.Uuid
+  bookingId      String   @unique @db.Uuid
+  pricingVersion String   @db.VarChar(80)
+  basePrice      Decimal  @db.Decimal(12,2)
+  extrasTotal    Decimal  @db.Decimal(12,2)
+  adjustments    Decimal  @db.Decimal(12,2)
+  fees           Decimal  @db.Decimal(12,2)
+  discount       Decimal  @db.Decimal(12,2)
+  total          Decimal  @db.Decimal(12,2)
+  currency       String   @default("JOD") @db.VarChar(3)
+  breakdown      Json     @db.JsonB
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+}
+
+model BookingStatusHistory {
+  id              String         @id @default(uuid()) @db.Uuid
+  bookingId       String         @db.Uuid
+  previousStatus  BookingStatus?
+  newStatus       BookingStatus
+  changedByUserId String?        @db.Uuid
+  changedByRole   RoleName?
+  reason          String?
+  metadata        Json?          @db.JsonB
+  createdAt       DateTime       @default(now()) @db.Timestamptz(3)
+  booking         Booking        @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  changedByUser   User?          @relation(fields: [changedByUserId], references: [id], onDelete: Restrict)
+  @@index([bookingId, createdAt])
+}
+
+model Assignment {
+  id         String           @id @default(uuid()) @db.Uuid
+  bookingId  String           @db.Uuid
+  companyId  String           @db.Uuid
+  teamId     String           @db.Uuid
+  status     AssignmentStatus @default(OFFERED)
+  startsAt   DateTime         @db.Timestamptz(3)
+  endsAt     DateTime         @db.Timestamptz(3)
+  assignedAt DateTime         @default(now()) @db.Timestamptz(3)
+  expiresAt  DateTime         @db.Timestamptz(3)
+  acceptedAt DateTime?        @db.Timestamptz(3)
+  reason     String?
+  booking    Booking          @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  team       Team             @relation(fields: [teamId, companyId], references: [id, companyId], onDelete: Restrict)
+  events     AssignmentEvent[]
+  proofs     CompletionProof[]
+  @@index([bookingId, status])
+  @@index([teamId, status])
+  @@index([companyId, status])
+  @@index([status, expiresAt])
+}
+
+model AssignmentEvent {
+  id           String     @id @default(uuid()) @db.Uuid
+  assignmentId String     @db.Uuid
+  type         String     @db.VarChar(60)
+  metadata     Json       @db.JsonB
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  @@index([assignmentId, createdAt])
+}
+
+model DispatchAttempt {
+  id        String   @id @default(uuid()) @db.Uuid
+  bookingId String   @db.Uuid
+  sequence  Int
+  outcome   String   @db.VarChar(60)
+  candidates Json    @db.JsonB
+  reason    String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  @@unique([bookingId, sequence])
+}
+
+model CompletionProof {
+  id           String     @id @default(uuid()) @db.Uuid
+  assignmentId String     @db.Uuid
+  storageKey   String     @unique
+  mimeType     String     @db.VarChar(80)
+  byteSize     Int
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  @@index([assignmentId])
+}
+
+model Payment {
+  id                   String        @id @default(uuid()) @db.Uuid
+  bookingId            String        @db.Uuid
+  method               PaymentMethod
+  status               PaymentStatus @default(PENDING)
+  amount               Decimal       @db.Decimal(12,2)
+  currency             String        @default("JOD") @db.VarChar(3)
+  provider             String?       @db.VarChar(80)
+  transactionReference String?       @db.VarChar(160)
+  createdAt            DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime      @updatedAt @db.Timestamptz(3)
+  booking              Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  transactions         PaymentTransaction[]
+  events               PaymentEvent[]
+  refunds              Refund[]
+  cashCollection       CashCollection?
+  attempts             PaymentAttempt[]
+  statusHistory        PaymentStatusHistory[]
+  settlementAllocations SettlementPaymentAllocation[]
+  @@unique([method, transactionReference])
+  @@index([bookingId, status])
+}
+
+model PaymentTransaction {
+  id          String   @id @default(uuid()) @db.Uuid
+  paymentId   String   @db.Uuid
+  type        String   @db.VarChar(40)
+  amount      Decimal  @db.Decimal(12,2)
+  reference   String   @unique @db.VarChar(160)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  @@index([paymentId, createdAt])
+}
+
+model PaymentEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  paymentId  String   @db.Uuid
+  provider   String   @db.VarChar(80)
+  eventId    String   @db.VarChar(160)
+  type       String   @db.VarChar(80)
+  payloadHash String  @db.VarChar(64)
+  signatureVerified Boolean @default(false)
+  verifiedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  payment    Payment  @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  @@unique([provider, eventId])
+  @@index([paymentId, createdAt])
+}
+
+model CashCollection {
+  id                String   @id @default(uuid()) @db.Uuid
+  paymentId         String   @unique @db.Uuid
+  collectedByUserId String   @db.Uuid
+  collectorCompanyId String?  @db.Uuid
+  collectorTeamId    String?  @db.Uuid
+  amount            Decimal  @db.Decimal(12,2)
+  collectedAt       DateTime @default(now()) @db.Timestamptz(3)
+  reconciledAt      DateTime? @db.Timestamptz(3)
+  payment           Payment  @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  collectedBy       User     @relation(fields: [collectedByUserId], references: [id], onDelete: Restrict)
+  collectorCompany  Company? @relation(fields: [collectorCompanyId], references: [id], onDelete: Restrict)
+  collectorTeam     Team?    @relation(fields: [collectorTeamId], references: [id], onDelete: Restrict)
+}
+
+model PaymentAttempt {
+  id                String   @id @default(uuid()) @db.Uuid
+  paymentId         String   @db.Uuid
+  provider          String   @db.VarChar(80)
+  attemptNumber     Int
+  status            String   @db.VarChar(40)
+  providerReference String?  @db.VarChar(160)
+  checkoutUrl       String?  @db.VarChar(1000)
+  requestKey        String   @db.VarChar(128)
+  amount            Decimal  @db.Decimal(12,2)
+  currency          String   @db.VarChar(3)
+  failureCode       String?  @db.VarChar(80)
+  failureMessage    String?
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(3)
+  payment           Payment  @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  @@unique([paymentId, attemptNumber])
+  @@unique([paymentId, requestKey])
+  @@unique([provider, providerReference])
+  @@index([provider, status, createdAt])
+}
+
+model PaymentStatusHistory {
+  id              String        @id @default(uuid()) @db.Uuid
+  paymentId       String        @db.Uuid
+  previousStatus  PaymentStatus?
+  newStatus       PaymentStatus
+  reason          String?
+  provider        String?       @db.VarChar(80)
+  eventId         String?       @db.VarChar(160)
+  changedByUserId String?       @db.Uuid
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+  payment         Payment       @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  changedByUser   User?         @relation(fields: [changedByUserId], references: [id], onDelete: Restrict)
+  @@index([paymentId, createdAt])
+}
+
+model Refund {
+  id          String       @id @default(uuid()) @db.Uuid
+  paymentId   String       @db.Uuid
+  amount      Decimal      @db.Decimal(12,2)
+  status      RefundStatus @default(PENDING)
+  reference   String?      @unique @db.VarChar(160)
+  reason      String
+  provider    String?      @db.VarChar(80)
+  failureCode String?      @db.VarChar(80)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(3)
+  payment     Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  history     RefundHistory[]
+  @@index([paymentId, status])
+}
+
+model RefundHistory {
+  id          String       @id @default(uuid()) @db.Uuid
+  refundId    String       @db.Uuid
+  previousStatus RefundStatus?
+  newStatus   RefundStatus
+  provider    String?      @db.VarChar(80)
+  reference   String?      @db.VarChar(160)
+  reason      String?
+  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+  refund      Refund       @relation(fields: [refundId], references: [id], onDelete: Restrict)
+  @@index([refundId, createdAt])
+}
+
+model ProviderPayable {
+  id                 String   @id @default(uuid()) @db.Uuid
+  bookingId          String   @unique @db.Uuid
+  companyId          String   @db.Uuid
+  customerAmount     Decimal  @db.Decimal(12,2)
+  commissionRate     Decimal  @db.Decimal(5,4)
+  platformCommission Decimal  @db.Decimal(12,2)
+  providerAmount     Decimal  @db.Decimal(12,2)
+  cashCollected      Decimal  @db.Decimal(12,2)
+  netPayable         Decimal  @db.Decimal(12,2)
+  grossAmount        Decimal? @db.Decimal(12,2)
+  refundedAmount     Decimal? @db.Decimal(12,2)
+  netCustomerAmount  Decimal? @db.Decimal(12,2)
+  onlineCollected    Decimal? @db.Decimal(12,2)
+  calculationSnapshot Json?   @db.JsonB
+  calculatedAt       DateTime? @db.Timestamptz(3)
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  booking            Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  settlementItem     SettlementItem?
+  @@unique([id, companyId])
+  @@index([companyId, createdAt])
+}
+
+model Settlement {
+  id          String           @id @default(uuid()) @db.Uuid
+  companyId   String           @db.Uuid
+  reference   String           @unique @db.VarChar(60)
+  status      SettlementStatus @default(DRAFT)
+  periodStart DateTime         @db.Timestamptz(3)
+  periodEnd   DateTime         @db.Timestamptz(3)
+  total       Decimal          @db.Decimal(12,2)
+  currency    String           @default("JOD") @db.VarChar(3)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+  version     Int              @default(0)
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  items       SettlementItem[]
+  payments    SettlementPayment[]
+  history     SettlementHistory[]
+  allocations SettlementPaymentAllocation[]
+  reconciliations SettlementReconciliation[]
+  @@unique([id, companyId])
+  @@index([companyId, status])
+}
+
+model SettlementHistory {
+  id             String         @id @default(uuid()) @db.Uuid
+  settlementId   String         @db.Uuid
+  previousStatus SettlementStatus?
+  newStatus      SettlementStatus
+  reason         String?
+  changedByUserId String?       @db.Uuid
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  settlement     Settlement     @relation(fields: [settlementId], references: [id], onDelete: Restrict)
+  changedByUser  User?          @relation(fields: [changedByUserId], references: [id], onDelete: Restrict)
+  @@index([settlementId, createdAt])
+}
+
+model SettlementItem {
+  id           String          @id @default(uuid()) @db.Uuid
+  settlementId String          @db.Uuid
+  payableId    String          @unique @db.Uuid
+  companyId    String          @db.Uuid
+  amount       Decimal         @db.Decimal(12,2)
+  settlement   Settlement      @relation(fields: [settlementId, companyId], references: [id, companyId], onDelete: Restrict)
+  payable      ProviderPayable @relation(fields: [payableId, companyId], references: [id, companyId], onDelete: Restrict)
+  allocations  SettlementPaymentAllocation[]
+  @@unique([payableId, companyId])
+  @@index([settlementId])
+}
+
+model SettlementPayment {
+  id           String     @id @default(uuid()) @db.Uuid
+  settlementId String     @db.Uuid
+  amount       Decimal    @db.Decimal(12,2)
+  direction    String     @db.VarChar(30)
+  reference    String     @unique @db.VarChar(160)
+  paidAt       DateTime   @db.Timestamptz(3)
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  settlement   Settlement @relation(fields: [settlementId], references: [id], onDelete: Restrict)
+  @@index([settlementId])
+}
+
+model SettlementPaymentAllocation {
+  id               String   @id @default(uuid()) @db.Uuid
+  settlementId     String   @db.Uuid
+  settlementItemId String   @db.Uuid
+  paymentId        String   @db.Uuid
+  amount           Decimal  @db.Decimal(12,2)
+  refundedAmount   Decimal  @db.Decimal(12,2)
+  allocatedAt      DateTime @default(now()) @db.Timestamptz(3)
+  settlement       Settlement     @relation(fields: [settlementId], references: [id], onDelete: Restrict)
+  settlementItem   SettlementItem @relation(fields: [settlementItemId], references: [id], onDelete: Restrict)
+  payment          Payment        @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  @@unique([paymentId])
+  @@unique([settlementItemId, paymentId])
+  @@index([settlementId])
+}
+
+model SettlementReconciliation {
+  id                    String   @id @default(uuid()) @db.Uuid
+  settlementId          String   @db.Uuid
+  runNumber             Int
+  status                String   @db.VarChar(30)
+  expectedCustomerTotal Decimal  @db.Decimal(12,2)
+  allocatedPaymentTotal Decimal  @db.Decimal(12,2)
+  refundTotal           Decimal  @db.Decimal(12,2)
+  payoutTotal           Decimal  @db.Decimal(12,2)
+  difference            Decimal  @db.Decimal(12,2)
+  details               Json     @db.JsonB
+  reconciledByUserId    String?  @db.Uuid
+  createdAt             DateTime @default(now()) @db.Timestamptz(3)
+  settlement            Settlement @relation(fields: [settlementId], references: [id], onDelete: Restrict)
+  reconciledBy          User?      @relation(fields: [reconciledByUserId], references: [id], onDelete: Restrict)
+  @@unique([settlementId, runNumber])
+  @@index([settlementId, createdAt])
+}
+
+model Notification {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  bookingId     String?  @db.Uuid
+  type          String   @db.VarChar(80)
+  category      String   @default("TRANSACTIONAL") @db.VarChar(40)
+  referenceType String?  @db.VarChar(60)
+  referenceId   String?  @db.VarChar(160)
+  eventKey      String?  @db.VarChar(200)
+  payload       Json     @db.JsonB
+  readAt        DateTime? @db.Timestamptz(3)
+  deliveredAt   DateTime? @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  booking       Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  deliveries    NotificationDelivery[]
+  @@index([userId, createdAt])
+  @@index([referenceType, referenceId, createdAt])
+}
+
+model NotificationDelivery {
+  id                String         @id @default(uuid()) @db.Uuid
+  notificationId    String         @db.Uuid
+  deviceTokenId     String?        @db.Uuid
+  status            DeliveryStatus @default(PENDING)
+  channel           String         @db.VarChar(40)
+  attempts          Int            @default(0)
+  providerReference String?
+  sentAt            DateTime?      @db.Timestamptz(3)
+  nextAttemptAt     DateTime?      @db.Timestamptz(3)
+  lastError         String?
+  createdAt         DateTime       @default(now()) @db.Timestamptz(3)
+  notification      Notification   @relation(fields: [notificationId], references: [id], onDelete: Restrict)
+  deviceToken       DeviceToken?   @relation(fields: [deviceTokenId], references: [id], onDelete: Restrict)
+  attemptsHistory   NotificationDeliveryAttempt[]
+  @@index([status, nextAttemptAt, createdAt])
+  @@index([deviceTokenId, status])
+}
+
+model NotificationDeliveryAttempt {
+  id           String         @id @default(uuid()) @db.Uuid
+  deliveryId   String         @db.Uuid
+  attemptNumber Int
+  status       DeliveryStatus
+  providerReference String?
+  error        String?
+  createdAt    DateTime       @default(now()) @db.Timestamptz(3)
+  delivery     NotificationDelivery @relation(fields: [deliveryId], references: [id], onDelete: Restrict)
+  @@unique([deliveryId, attemptNumber])
+  @@index([deliveryId, createdAt])
+}
+
+model DeviceToken {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  token         String   @unique
+  platform      String   @db.VarChar(20)
+  active        Boolean  @default(true)
+  invalidatedAt DateTime? @db.Timestamptz(3)
+  lastSeenAt    DateTime @default(now()) @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  deliveries    NotificationDelivery[]
+  @@index([userId, active])
+}
+
+model PricingQuote {
+  id          String   @id @default(uuid()) @db.Uuid
+  customerId  String   @db.Uuid
+  promotionId String?  @db.Uuid
+  snapshot    Json     @db.JsonB
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt   DateTime @db.Timestamptz(3)
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  promotion   Promotion? @relation(fields: [promotionId], references: [id], onDelete: Restrict)
+  consumption QuoteConsumption?
+  @@unique([id, customerId])
+  @@index([customerId, createdAt])
+  @@index([expiresAt])
+}
+
+model QuoteConsumption {
+  quoteId    String @id @db.Uuid
+  bookingId  String @unique @db.Uuid
+  customerId String @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  quote      PricingQuote @relation(fields: [quoteId, customerId], references: [id, customerId], onDelete: Restrict)
+  booking    Booking @relation(fields: [bookingId, customerId], references: [id, customerId], onDelete: Restrict)
+  @@unique([quoteId, customerId])
+  @@unique([bookingId, customerId])
+}
+
+model PricingRule {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String   @db.VarChar(80)
+  version    Int
+  definition Json     @db.JsonB
+  active     Boolean  @default(false)
+  startsAt   DateTime @db.Timestamptz(3)
+  endsAt     DateTime? @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  @@unique([name, version])
+  @@index([active, startsAt, endsAt])
+}
+
+model Promotion {
+  quotes      PricingQuote[]
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(40)
+  discount    Decimal  @db.Decimal(12,2)
+  minTotal    Decimal  @db.Decimal(12,2)
+  maxUses     Int?
+  uses        Int      @default(0)
+  active      Boolean  @default(false)
+  startsAt    DateTime @db.Timestamptz(3)
+  endsAt      DateTime @db.Timestamptz(3)
+  @@index([active, startsAt, endsAt])
+}
+
+model Rating {
+  id         String   @id @default(uuid()) @db.Uuid
+  bookingId  String   @unique @db.Uuid
+  customerId String   @db.Uuid
+  score      Int
+  comment    String?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  booking    Booking  @relation(fields: [bookingId, customerId], references: [id, customerId], onDelete: Restrict)
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  @@unique([bookingId, customerId])
+  @@index([customerId])
+}
+
+model SupportTicket {
+  id         String       @id @default(uuid()) @db.Uuid
+  customerId String       @db.Uuid
+  bookingId  String?      @db.Uuid
+  subject    String       @db.VarChar(160)
+  description String
+  status     TicketStatus @default(OPEN)
+  createdAt  DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime     @updatedAt @db.Timestamptz(3)
+  customer   Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  booking    Booking?     @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  @@index([customerId, status])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @db.Uuid
+  action      String   @db.VarChar(100)
+  resourceType String  @db.VarChar(80)
+  resourceId  String   @db.VarChar(160)
+  before      Json?    @db.JsonB
+  after       Json?    @db.JsonB
+  reason      String?
+  requestId   String?  @db.VarChar(80)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  @@index([resourceType, resourceId, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+model Session {
+  id               String   @id @default(uuid()) @db.Uuid
+  familyId         String   @default(uuid()) @db.Uuid
+  userId           String   @db.Uuid
+  accessTokenHash  String   @unique @db.VarChar(64)
+  refreshTokenHash String   @unique @db.VarChar(64)
+  accessExpiresAt  DateTime @db.Timestamptz(3)
+  expiresAt        DateTime @db.Timestamptz(3)
+  revokedAt        DateTime? @db.Timestamptz(3)
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@index([userId, expiresAt])
+  @@index([familyId])
+}
+
+model OtpChallenge {
+  id        String   @id @default(uuid()) @db.Uuid
+  phone     String   @db.VarChar(20)
+  codeHash  String   @db.VarChar(64)
+  attempts  Int      @default(0)
+  expiresAt DateTime @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([phone, createdAt])
+}
+
+model IdempotencyKey {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  operation   String   @db.VarChar(100)
+  key         String   @db.VarChar(128)
+  requestHash String   @db.VarChar(64)
+  response    Json     @db.JsonB
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@unique([userId, operation, key])
+}
+
+model OutboxEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  type        String   @db.VarChar(100)
+  aggregateId String   @db.Uuid
+  payload     Json     @db.JsonB
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  processedAt DateTime? @db.Timestamptz(3)
+  attempts    Int      @default(0)
+  @@index([processedAt, createdAt])
+}

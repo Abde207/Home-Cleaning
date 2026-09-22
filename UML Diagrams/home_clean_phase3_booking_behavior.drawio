@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-09-15T12:45:00.000Z" agent="ChatGPT" version="24.7.17">
+  <diagram id="phase3-booking" name="Phase 3 - Booking State Machine">
+    <mxGraphModel dx="1600" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="title" value="HOME CLEAN — PHASE 3: BOOKING STATE MACHINE" style="text;html=1;strokeColor=none;fillColor=none;fontSize=24;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="420" y="20" width="760" height="50" as="geometry"/></mxCell>
+        <mxCell id="s" value="START" style="ellipse;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="60" y="140" width="90" height="50" as="geometry"/></mxCell>
+        <mxCell id="r" value="REQUESTED" style="rounded=1;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="200" y="140" width="140" height="50" as="geometry"/></mxCell>
+        <mxCell id="pc" value="PRICE CONFIRMED" style="rounded=1;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="390" y="140" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="pp" value="PAYMENT PENDING" style="rounded=1;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="610" y="90" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="cash" value="CASH SELECTED" style="rounded=1;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="610" y="190" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="pay" value="PAYMENT CONFIRMED" style="rounded=1;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="830" y="140" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="search" value="SEARCHING FOR TEAM" style="rounded=1;html=1;fillColor=#F3E5F5;strokeColor=#6A1B9A;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1060" y="140" width="190" height="50" as="geometry"/></mxCell>
+        <mxCell id="assigned" value="TEAM ASSIGNED" style="rounded=1;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1060" y="250" width="190" height="50" as="geometry"/></mxCell>
+        <mxCell id="accepted" value="TEAM ACCEPTED" style="rounded=1;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1060" y="360" width="190" height="50" as="geometry"/></mxCell>
+        <mxCell id="way" value="TEAM ON THE WAY" style="rounded=1;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1060" y="470" width="190" height="50" as="geometry"/></mxCell>
+        <mxCell id="startclean" value="CLEANING STARTED" style="rounded=1;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1060" y="580" width="190" height="50" as="geometry"/></mxCell>
+        <mxCell id="doneclean" value="CLEANING COMPLETED" style="rounded=1;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1060" y="690" width="190" height="50" as="geometry"/></mxCell>
+        <mxCell id="recon" value="PAYMENT / SETTLEMENT RECONCILED" style="rounded=1;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1010" y="800" width="290" height="60" as="geometry"/></mxCell>
+        <mxCell id="completed" value="COMPLETED" style="ellipse;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=2;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1070" y="920" width="170" height="60" as="geometry"/></mxCell>
+        <mxCell id="reject" value="REJECTED / REASSIGN" style="rounded=1;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="770" y="300" width="190" height="50" as="geometry"/></mxCell>
+        <mxCell id="no" value="NO TEAM AVAILABLE" style="rounded=1;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="770" y="210" width="190" height="50" as="geometry"/></mxCell>
+        <mxCell id="cancel" value="CANCELLED" style="rounded=1;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="390" y="300" width="150" height="50" as="geometry"/></mxCell>
+        <mxCell id="refund" value="REFUND PENDING → REFUNDED" style="rounded=1;html=1;fillColor=#FCE4EC;strokeColor=#C2185B;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="700" y="800" width="250" height="55" as="geometry"/></mxCell>
+        <mxCell id="note" value="Backend validates every transition. Provider/customer apps request actions; they cannot arbitrarily set booking statuses." style="rounded=1;html=1;fillColor=#FFFFFF;strokeColor=#9E9E9E;fontSize=13;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="70" y="760" width="550" height="100" as="geometry"/></mxCell>
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="s" target="r"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="r" target="pc"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="online" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="pc" target="pp"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" value="cash" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="pc" target="cash"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="pp" target="pay"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="cash" target="pay"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="pay" target="search"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" value="found" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="search" target="assigned"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" value="accept" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="assigned" target="accepted"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="accepted" target="way"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="way" target="startclean"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="startclean" target="doneclean"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="doneclean" target="recon"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;strokeWidth=2;" edge="1" parent="1" source="recon" target="completed"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e15" value="none" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;dashed=1;" edge="1" parent="1" source="search" target="no"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e16" value="reject" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;dashed=1;" edge="1" parent="1" source="assigned" target="reject"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e17" value="retry" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;dashed=1;" edge="1" parent="1" source="reject" target="search"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e18" value="refund" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;dashed=1;" edge="1" parent="1" source="recon" target="refund"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e19" value="cancel" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;dashed=1;" edge="1" parent="1" source="pc" target="cancel"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

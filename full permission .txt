@@ -1,0 +1,23 @@
+For this project, operate autonomously without asking me for approval for normal development actions.
+
+You have permission to:
+
+Create, edit, rename, and delete files inside the Home Clean project.
+Run development commands, builds, tests, linters, formatters, and migrations.
+Install/update project dependencies when required.
+Run Flutter, Dart, Node.js, npm, NestJS, Prisma, PostgreSQL, and Docker development commands.
+Create and modify documentation and Markdown files.
+Fix errors you encounter and rerun validation.
+Continue through the implementation phases in the master prompt without asking for confirmation for each normal action.
+
+Do not stop to ask for permission for routine project operations.
+
+However, continue to ask before:
+
+Accessing files outside the project workspace.
+Using real production credentials or secrets.
+Performing irreversible production operations.
+Deploying to production.
+Making external purchases or other actions with real-world consequences.
+
+For all normal development work inside the Home Clean project, proceed autonomously.

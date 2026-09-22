@@ -1,0 +1,25 @@
+{
+  "name": "home-clean",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.15.0 <25", "npm": ">=11 <12" },
+  "packageManager": "npm@11.12.1",
+  "overrides": { "deepmerge-ts": "8.0.2" },
+  "workspaces": ["backend/nestjs", "admin/nextjs"],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "build:backend": "npm run build -w @home-clean/backend",
+    "build:admin": "npm run build -w @home-clean/admin",
+    "test": "node --env-file=.env scripts/test-backend.mjs",
+    "test:unit": "npm run build:backend && node --test --test-isolation=none backend/nestjs/test/unit/*.test.mjs",
+    "test:database": "node --env-file=.env --import tsx scripts/check-database.mjs",
+    "dev:backend": "npm run dev -w @home-clean/backend",
+    "dev:admin": "npm run dev -w @home-clean/admin",
+    "prisma:validate": "npm run prisma:validate -w @home-clean/backend",
+    "prisma:generate": "npm run prisma:generate -w @home-clean/backend",
+    "prisma:deploy": "npm run prisma:deploy -w @home-clean/backend",
+    "prisma:status": "npm run prisma:status -w @home-clean/backend",
+    "prisma:seed": "npm run prisma:seed -w @home-clean/backend"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@home-clean/admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "next dev -p 3000", "build": "tsc --noEmit && next build", "start": "next start -p 3000", "typecheck": "tsc --noEmit", "test": "node --experimental-strip-types --test --test-isolation=none tests/foundation.test.ts tests/read-models.test.ts tests/providers.test.ts tests/operations.test.ts tests/finance.test.ts tests/observability.test.ts" },
+  "dependencies": { "next": "16.3.5", "react": "19.3.0", "react-dom": "19.3.0" },
+  "devDependencies": { "@types/node": "24.10.1", "@types/react": "19.2.2", "@types/react-dom": "19.2.2", "tsx": "4.20.6", "typescript": "5.9.3" }
+}

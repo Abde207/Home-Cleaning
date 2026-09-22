@@ -1,0 +1,70 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="User Roles &amp; Permissions" id="0KMkeF8RLxfwWTTd1Bbb">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=24;fontStyle=1;align=center;verticalAlign=middle;fontColor=#1F2937;" value="HOME CLEAN — USER ROLES &amp; PERMISSIONS MODEL" vertex="1">
+          <mxGeometry height="50" width="640" x="480" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;strokeWidth=2;fontSize=18;fontStyle=1;align=center;verticalAlign=middle;" value="CUSTOMER&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Customer Mobile App&lt;/font&gt;" vertex="1">
+          <mxGeometry height="80" width="250" x="70" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=2;fontSize=18;fontStyle=1;align=center;verticalAlign=middle;" value="PROVIDER APP" vertex="1">
+          <mxGeometry height="80" width="260" x="670" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#6A1B9A;strokeWidth=2;fontSize=18;fontStyle=1;align=center;verticalAlign=middle;" value="ADMIN DASHBOARD" vertex="1">
+          <mxGeometry height="80" width="260" x="1230" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FBFF;strokeColor=#90CAF9;fontSize=14;align=left;verticalAlign=top;spacingTop=12;spacingLeft=14;" value="&lt;b&gt;Permissions&lt;/b&gt;&lt;br&gt;• Register / Login&lt;br&gt;• Manage Profile&lt;br&gt;• Manage Addresses&lt;br&gt;• Browse Services&lt;br&gt;• Enter Property Details&lt;br&gt;• Select Date &amp; Time&lt;br&gt;• Review Price&lt;br&gt;• Choose Payment Method&lt;br&gt;• Confirm Booking&lt;br&gt;• Track Booking&lt;br&gt;• View Booking History&lt;br&gt;• View Payment History&lt;br&gt;• Rate Completed Service&lt;br&gt;• Cancel Booking" vertex="1">
+          <mxGeometry height="390" width="250" x="70" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-6" parent="1" style="swimlane;html=1;rounded=1;fillColor=#F6FFF7;strokeColor=#66BB6A;strokeWidth=2;fontSize=16;fontStyle=1;startSize=35;arcSize=13;" value="&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp;PROVIDER ROLES" vertex="1">
+          <mxGeometry height="520" width="620" x="490" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-7" parent="3AkAIlHnWw5eDcCnQUMB-6" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#43A047;fontSize=14;align=left;verticalAlign=top;spacingTop=12;spacingLeft=14;" value="&lt;b&gt;COMPANY MANAGER&lt;/b&gt;&lt;br&gt;&lt;br&gt;• Login&lt;br&gt;• View Incoming Jobs&lt;br&gt;• View Job Details&lt;br&gt;• Accept / Reject Jobs&lt;br&gt;• View Schedule&lt;br&gt;• Manage Team Availability&lt;br&gt;• Manage Teams&lt;br&gt;• View Company Earnings&lt;br&gt;• View Settlement History" vertex="1">
+          <mxGeometry height="400" width="270" x="25" y="55" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-8" parent="3AkAIlHnWw5eDcCnQUMB-6" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F8E9;strokeColor=#7CB342;fontSize=14;align=left;verticalAlign=top;spacingTop=12;spacingLeft=14;" value="&lt;b&gt;TEAM LEADER / CLEANER&lt;/b&gt;&lt;br&gt;&lt;br&gt;• Login&lt;br&gt;• View Assigned Jobs&lt;br&gt;• View Job Details&lt;br&gt;• Accept / Reject Jobs&lt;br&gt;• View Schedule&lt;br&gt;• Manage Team Availability&lt;br&gt;• Navigate to Customer&lt;br&gt;• Start Cleaning&lt;br&gt;• Complete Cleaning&lt;br&gt;• Submit Completion Proof" vertex="1">
+          <mxGeometry height="400" width="270" x="325" y="55" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-9" parent="1" style="swimlane;html=1;rounded=1;fillColor=#FCF7FF;strokeColor=#AB47BC;strokeWidth=2;fontSize=16;fontStyle=1;startSize=35;" value="ADMIN ROLES" vertex="1">
+          <mxGeometry height="520" width="400" x="1160" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-10" parent="3AkAIlHnWw5eDcCnQUMB-9" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#8E24AA;fontSize=13;align=left;verticalAlign=top;spacingTop=12;spacingLeft=14;" value="&lt;b&gt;HOME CLEAN ADMIN&lt;/b&gt;&lt;br&gt;&lt;br&gt;• Manage Customers&lt;br&gt;• Manage Companies&lt;br&gt;• Manage Teams&lt;br&gt;• Manage Services&lt;br&gt;• Manage Pricing&lt;br&gt;• View / Manage Bookings&lt;br&gt;• Manual Team Assignment&lt;br&gt;• Monitor Dispatch&lt;br&gt;• Manage Payments&lt;br&gt;• Manage Cash Settlements&lt;br&gt;• Manage Refunds&lt;br&gt;• View Reports&lt;br&gt;• Company Performance&lt;br&gt;• Manage Promotions" vertex="1">
+          <mxGeometry height="400" width="360" x="20" y="55" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;strokeWidth=2;fontSize=16;fontStyle=1;align=center;verticalAlign=middle;" value="HOME CLEAN BACKEND / AUTHORIZATION LAYER&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Role-based access control • Data isolation • Booking authorization • Provider/customer visibility rules&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="820" x="390" y="820" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-13" edge="1" parent="1" source="3AkAIlHnWw5eDcCnQUMB-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;" target="3AkAIlHnWw5eDcCnQUMB-12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-14" edge="1" parent="1" source="3AkAIlHnWw5eDcCnQUMB-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;" target="3AkAIlHnWw5eDcCnQUMB-12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-15" edge="1" parent="1" source="3AkAIlHnWw5eDcCnQUMB-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeWidth=2;" target="3AkAIlHnWw5eDcCnQUMB-12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-16" edge="1" parent="1" source="3AkAIlHnWw5eDcCnQUMB-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=none;dashed=1;fontSize=12;" target="3AkAIlHnWw5eDcCnQUMB-6" value="contains">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-17" edge="1" parent="1" source="3AkAIlHnWw5eDcCnQUMB-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=none;dashed=1;fontSize=12;" target="3AkAIlHnWw5eDcCnQUMB-9" value="contains">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-18" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#FB8C00;fontSize=14;fontStyle=1;align=center;verticalAlign=middle;" value="CUSTOMER VISIBILITY RULE&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Customer sees Home Clean branding and controlled booking information.&lt;br&gt;Internal company IDs, commission, contract terms and settlement data remain internal.&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="820" x="390" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-19" edge="1" parent="1" source="3AkAIlHnWw5eDcCnQUMB-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;strokeWidth=2;" target="3AkAIlHnWw5eDcCnQUMB-12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-20" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9E9E9E;fontSize=12;align=left;verticalAlign=middle;spacingLeft=12;" value="ROLE MODEL&lt;br&gt;Customer = customer-facing operations&lt;br&gt;Provider = company/team fulfillment&lt;br&gt;Admin = platform operations &amp; control&lt;br&gt;Backend = enforces authorization and data boundaries" vertex="1">
+          <mxGeometry height="130" width="250" x="70" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="3AkAIlHnWw5eDcCnQUMB-11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#D81B60;fontSize=13;align=left;verticalAlign=top;spacingTop=12;spacingLeft=14;" value="&lt;b&gt;DISPATCHER / OPERATIONS&lt;/b&gt;&lt;br&gt;&lt;br&gt;• View Bookings&lt;br&gt;• Validate Booking&lt;br&gt;• View Available Teams&lt;br&gt;• View Team Locations&lt;br&gt;• Assign Team Manually&lt;br&gt;• Reassign Team&lt;br&gt;• Monitor Dispatch" vertex="1">
+          <mxGeometry width="360" x="1275" y="750" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

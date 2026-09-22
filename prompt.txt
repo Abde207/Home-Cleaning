@@ -1,0 +1,2125 @@
+1# HOME CLEAN APP
+
+## CODEX MASTER IMPLEMENTATION PROMPT
+
+### Production Implementation — Sequential Phase-by-Phase Execution
+
+---
+
+# 0. ROLE
+
+You are the principal software engineer responsible for implementing the **Home Clean App** from the existing architecture and specifications.
+
+Your job is NOT to redesign the project from scratch.
+
+Your job is to:
+
+1. Read the existing specification.
+2. Inspect the repository.
+3. Implement the system exactly according to the specification.
+4. Work in a strict sequential order.
+5. Validate every phase before moving to the next.
+6. Fix problems before continuing.
+7. Keep documentation synchronized with implementation.
+8. Never claim something is implemented or validated unless you actually verified it.
+
+This is intended to become a **production-oriented application**, not a prototype.
+
+---
+
+# 1. SOURCE OF TRUTH
+
+The primary source of truth is:
+
+`Home_Clean_App_Complete_Design_Until_Phase_12A.md`
+
+Read this file completely before making architectural decisions or modifying the project.
+
+Supporting architectural reference:
+
+`docs/uml/home_clean_app_uml_design_complete.md`
+
+Additional `.drawio` UML files may exist under:
+
+`docs/uml/`
+
+Use them as supporting visual references.
+
+The UML/index files must NOT override the master specification.
+
+If there is a conflict:
+
+1. Master specification
+2. Explicit implementation decisions documented later in the repository
+3. UML diagrams
+4. Existing code
+
+Do not silently resolve major contradictions.
+
+Document them in:
+
+`docs/codex-implementation-status.md`
+
+---
+
+# 2. BUSINESS CONTEXT
+
+Home Clean is a cleaning-service marketplace and dispatch platform initially targeting Jordan, beginning with Amman.
+
+The fundamental business model is:
+
+Customer
+→ Home Clean
+→ Dispatch
+→ Partner Cleaning Company
+→ Cleaning Team
+→ Customer
+
+The customer books through Home Clean.
+
+The customer does NOT directly book with or manage the cleaning company.
+
+Home Clean owns the customer relationship.
+
+Partner cleaning companies provide the operational workforce behind the platform.
+
+The platform must support:
+
+* Customer mobile application
+* Provider mobile application
+* Home Clean Admin web dashboard
+* Backend API
+* Database
+* Dispatch system
+* Payments
+* Cash collection
+* Settlements
+* Notifications
+* Location/maps
+* Ratings
+* Support
+* Promotions
+* Audit logging
+* Authentication
+* Authorization
+
+---
+
+# 3. REQUIRED TECHNOLOGY STACK
+
+Unless the specification explicitly requires otherwise, use:
+
+## Customer Application
+
+Flutter / Dart
+
+Recommended architecture:
+
+* Feature-first structure
+* Riverpod
+* go_router
+* Dio
+* Freezed
+* json_serializable
+* secure token storage
+* localization
+* Arabic RTL
+* English LTR
+
+---
+
+## Provider Application
+
+Flutter / Dart
+
+Use the same architectural principles as the Customer App.
+
+Provider roles include:
+
+* Company Manager
+* Team Leader / Cleaner
+
+Provider users must only access resources authorized for their company/team/scope.
+
+---
+
+## Backend
+
+NestJS
+Node.js
+TypeScript
+
+Use a modular monolith architecture initially.
+
+Do NOT prematurely split the backend into microservices.
+
+---
+
+## Database
+
+PostgreSQL
+
+ORM:
+
+Prisma
+
+Money:
+
+Use fixed precision numeric/decimal values.
+
+Do NOT use floating-point numbers for financial amounts.
+
+Currency:
+
+JOD
+
+---
+
+## Caching / Jobs
+
+Redis
+
+BullMQ or the queue architecture specified by the master specification.
+
+---
+
+## Admin
+
+Next.js / React
+
+The Admin Dashboard is a separate administrative interface.
+
+---
+
+## API
+
+REST
+
+Base path:
+
+`/api/v1`
+
+Use DTOs and explicit domain commands.
+
+Do NOT create arbitrary status mutation endpoints such as:
+
+`PATCH /booking/:id/status`
+
+Business transitions must be represented by explicit commands/actions.
+
+---
+
+# 4. NON-NEGOTIABLE BUSINESS RULES
+
+These rules must always remain true.
+
+## 4.1 Backend owns business state
+
+The backend is authoritative for:
+
+* Booking status
+* Assignment status
+* Payment status
+* Refund status
+* Settlement status
+* User authorization
+* Pricing
+* Dispatch decisions
+* Financial calculations
+
+Flutter and Admin applications must not independently determine authoritative business state.
+
+---
+
+## 4.2 Customer relationship
+
+The customer interacts with Home Clean.
+
+The customer does not directly manage the partner cleaning company.
+
+Do not expose unnecessary internal provider information.
+
+---
+
+## 4.3 Provider isolation
+
+A provider user must only access resources within their authorized company/team scope.
+
+Never trust company IDs, team IDs, or role claims supplied by the client without server-side authorization.
+
+---
+
+## 4.4 Assignment is separate from Booking
+
+Do NOT collapse assignment history into the booking.
+
+A booking can have:
+
+* multiple assignment attempts
+* rejection
+* reassignment
+* manual reassignment
+* dispatch retries
+
+Historical assignments must remain auditable.
+
+---
+
+## 4.5 Historical data must remain historical
+
+When important booking information is confirmed, preserve snapshots where specified.
+
+Examples:
+
+* booking address
+* location
+* service price
+* extras
+* pricing
+* payment information
+
+Changing the customer's current profile must not rewrite historical booking records.
+
+---
+
+## 4.6 Payments
+
+Online payments must be server verified.
+
+Never trust:
+
+* client payment success
+* client transaction status
+* client amount
+* client webhook-like data
+
+Payment gateway webhooks must be verified.
+
+---
+
+## 4.7 Cash
+
+Cash is an explicit payment flow.
+
+Cash must not be treated as "online payment failed."
+
+Cash collection and reconciliation must be auditable.
+
+---
+
+## 4.8 Financial separation
+
+Keep separate concepts for:
+
+* customer payment
+* payment transaction
+* platform commission
+* provider payable
+* settlement
+* settlement payment
+
+Do not merge them into one financial record.
+
+---
+
+## 4.9 Idempotency
+
+Important operations must be safe against retries.
+
+At minimum consider:
+
+* booking creation
+* payment initiation
+* payment webhook processing
+* assignment acceptance
+* assignment rejection
+* cash collection
+* refund creation
+* settlement operations
+
+---
+
+## 4.10 Auditability
+
+Important administrative and financial actions must be logged.
+
+Manual actions must identify:
+
+* actor
+* action
+* affected resource
+* timestamp
+* relevant before/after information where appropriate
+
+---
+
+# 5. WORKING METHOD
+
+You MUST work sequentially.
+
+Do NOT attempt to implement the entire application in one uncontrolled pass.
+
+Follow this process:
+
+```text
+PHASE
+↓
+READ REQUIREMENTS
+↓
+INSPECT EXISTING IMPLEMENTATION
+↓
+IMPLEMENT
+↓
+RUN TESTS / VALIDATION
+↓
+FIX FAILURES
+↓
+DOCUMENT
+↓
+MARK PHASE COMPLETE
+↓
+NEXT PHASE
+```
+
+Never skip validation because the next phase is more interesting.
+
+---
+
+# 6. FIRST ACTION — REPOSITORY AUDIT
+
+Before writing application features, inspect the entire repository.
+
+Identify:
+
+* existing files
+* existing apps
+* existing backend
+* existing Flutter projects
+* existing database
+* Prisma schema
+* migrations
+* Docker configuration
+* environment configuration
+* documentation
+* UML
+* tests
+* CI/CD
+* unused/incomplete code
+* duplicate implementations
+* placeholder implementations
+* TODOs
+* broken imports
+* dependency problems
+
+Do NOT immediately rewrite existing code.
+
+First understand it.
+
+Create:
+
+`docs/codex-implementation-status.md`
+
+with:
+
+```text
+Project Status
+Architecture
+Repository Structure
+Implemented
+Partially Implemented
+Not Implemented
+Validation Status
+Known Problems
+Architectural Conflicts
+Current Phase
+Next Phase
+```
+
+Use these status labels:
+
+* SPECIFIED
+* IMPLEMENTED
+* VALIDATED
+* PARTIALLY IMPLEMENTED
+* BLOCKED
+* NOT IMPLEMENTED
+
+Do not use "VALIDATED" unless an actual validation command/test was successfully executed.
+
+---
+
+# 7. PHASE ORDER
+
+Implement the system in exactly this broad order.
+
+```text
+PHASE 0  Repository Audit
+PHASE 1  Project/Foundation Validation
+PHASE 2  Database + Prisma
+PHASE 3  Backend Infrastructure
+PHASE 4  Authentication + Authorization
+PHASE 5  Core Domain
+PHASE 6  Booking Engine
+PHASE 7  Pricing
+PHASE 8  Dispatch
+PHASE 9  Payments + Cash
+PHASE 10 Settlements
+PHASE 11 Notifications + Locations
+PHASE 12 Customer Application
+PHASE 13 Provider Application
+PHASE 14 Admin Dashboard
+PHASE 15 Ratings + Support + Promotions
+PHASE 16 Integration
+PHASE 17 Security Hardening
+PHASE 18 Testing
+PHASE 19 Docker + Deployment
+PHASE 20 Production Readiness
+```
+
+The existing architecture may contain numbered phases with different names.
+
+Those original phases remain documented in the master specification.
+
+The above implementation sequence is the **engineering execution order**.
+
+---
+
+# 8. PHASE 0 — REPOSITORY AUDIT
+
+Complete the repository audit first.
+
+Tasks:
+
+* inspect repository
+* inspect package manifests
+* inspect Flutter projects
+* inspect NestJS project
+* inspect Prisma
+* inspect Docker
+* inspect environment files
+* inspect tests
+* inspect documentation
+* inspect generated artifacts
+* identify incomplete code
+* identify broken code
+
+Deliver:
+
+`docs/codex-implementation-status.md`
+
+Do not start feature implementation until the audit is documented.
+
+---
+
+# 9. PHASE 1 — FOUNDATION VALIDATION
+
+Validate the existing foundation.
+
+Verify:
+
+* Node version
+* npm/pnpm/yarn configuration
+* Flutter version
+* Dart version
+* NestJS startup
+* Next.js startup
+* PostgreSQL
+* Redis
+* Docker
+* Prisma
+* migrations
+* environment configuration
+
+Run the actual commands.
+
+Examples:
+
+```bash
+flutter doctor
+flutter pub get
+flutter analyze
+npm install
+npm run build
+npx prisma validate
+npx prisma generate
+npx prisma migrate status
+```
+
+Use the package manager actually present in the repository.
+
+Do not assume commands succeed.
+
+Record actual results.
+
+---
+
+# 10. PHASE 2 — DATABASE + PRISMA
+
+Implement and validate the PostgreSQL/Prisma foundation.
+
+Ensure the schema supports the documented domain.
+
+Core entities include:
+
+* User
+* Customer
+* Company
+* Team
+* TeamMember
+* Service
+* Property
+* Address
+* Booking
+* BookingExtra
+* Assignment
+* Payment
+* Settlement
+* Notification
+* Rating
+* SupportTicket
+* Promotion
+* AuditLog
+* DeviceToken
+* BookingStatusHistory
+* other entities specified by the master document
+
+Verify:
+
+* relationships
+* foreign keys
+* indexes
+* unique constraints
+* nullable fields
+* cascade/restrict behavior
+* monetary precision
+* UUID strategy
+* timestamps
+* historical snapshots
+* migration integrity
+
+Run:
+
+```bash
+prisma validate
+prisma generate
+prisma migrate status
+```
+
+If a disposable PostgreSQL environment is available, run the migration against it.
+
+Run seed.
+
+Verify seed data.
+
+Do not mark this phase VALIDATED until actual commands succeed.
+
+---
+
+# 11. PHASE 3 — BACKEND INFRASTRUCTURE
+
+Build the NestJS foundation.
+
+Implement:
+
+* ConfigModule
+* environment validation
+* PrismaService
+* DatabaseModule
+* logging
+* exception handling
+* request validation
+* serialization
+* API versioning
+* health checks
+* security middleware
+* common utilities
+* error response format
+
+Health endpoint must verify application/database health appropriately.
+
+Structure modules according to domain boundaries.
+
+---
+
+# 12. PHASE 4 — AUTHENTICATION + AUTHORIZATION
+
+Implement authentication.
+
+The architecture specifies phone + OTP as the proposed authentication mechanism.
+
+Implement securely.
+
+Include:
+
+* OTP generation
+* OTP expiration
+* attempt limits
+* rate limiting
+* verification
+* access tokens
+* refresh tokens if required
+* token revocation
+* device/session handling
+
+Implement roles:
+
+```text
+CUSTOMER
+COMPANY_MANAGER
+TEAM_LEADER_CLEANER
+HOME_CLEAN_ADMIN
+DISPATCHER
+```
+
+Implement authorization based on:
+
+```text
+Role
++
+Resource
++
+Scope
+```
+
+Examples:
+
+A Company Manager can only manage their company.
+
+A Team Leader/Cleaner can only access assigned/authorized operational resources.
+
+A Customer can only access their own resources.
+
+Admin/Dispatcher permissions must be explicit.
+
+Never rely exclusively on frontend route guards.
+
+---
+
+# 13. PHASE 5 — CORE DOMAIN
+
+Implement domain modules.
+
+At minimum:
+
+```text
+users
+customers
+companies
+teams
+services
+properties
+addresses
+```
+
+Implement:
+
+* entities/models
+* DTOs
+* repositories/services
+* controllers
+* authorization
+* validation
+* tests
+
+Do not expose internal database structure directly through APIs.
+
+---
+
+# 14. PHASE 6 — BOOKING ENGINE
+
+Implement the booking lifecycle exactly according to the master specification.
+
+Primary lifecycle:
+
+```text
+REQUESTED
+↓
+PRICE_CONFIRMED
+↓
+PAYMENT_PENDING / CASH_SELECTED
+↓
+PAYMENT_CONFIRMED
+↓
+SEARCHING_FOR_TEAM
+↓
+TEAM_ASSIGNED
+↓
+TEAM_ACCEPTED
+↓
+TEAM_ON_THE_WAY
+↓
+CLEANING_STARTED
+↓
+CLEANING_COMPLETED
+↓
+PAYMENT_RECONCILIATION
+↓
+COMPLETED
+```
+
+Exception states include documented states such as:
+
+```text
+CANCELLED
+NO_TEAM_AVAILABLE
+REJECTED
+TEAM_NO_SHOW
+CUSTOMER_NO_SHOW
+REFUND_PENDING
+REFUNDED
+```
+
+Backend owns transitions.
+
+Implement explicit commands such as:
+
+```text
+CreateBooking
+ConfirmBooking
+SelectCashPayment
+InitiateOnlinePayment
+CancelBooking
+AcceptAssignment
+RejectAssignment
+MarkOnTheWay
+StartCleaning
+CompleteCleaning
+SubmitCompletionProof
+CollectCash
+CreateRefund
+ManualAssignBooking
+ManualReassignBooking
+```
+
+Do not allow arbitrary client-driven status changes.
+
+Every transition must validate:
+
+* current state
+* actor
+* authorization
+* business rules
+* required data
+
+Write booking status history.
+
+Use database transactions where multiple related writes must remain consistent.
+
+---
+
+# 15. PHASE 7 — PRICING
+
+Implement backend-controlled pricing.
+
+Pricing must support the documented formula:
+
+```text
+customer_total =
+base_service_price
++ extras
++ adjustments
++ fees
+- discounts
+```
+
+Pricing must be deterministic and auditable.
+
+Support:
+
+* service pricing
+* extras
+* property-related pricing if specified
+* promotions/discounts
+* fees
+* adjustments
+* pricing versions
+
+When booking price is confirmed, preserve the historical price snapshot.
+
+Do not recalculate old bookings from current pricing rules.
+
+Never trust the customer app to calculate the final amount.
+
+---
+
+# 16. PHASE 8 — DISPATCH
+
+Implement dispatch only after booking and pricing are stable.
+
+Dispatch eligibility must consider documented factors such as:
+
+* availability
+* service area
+* service/capability
+* workload
+* capacity
+* distance
+* ETA
+
+Scoring may consider:
+
+* availability
+* service match
+* capability
+* proximity
+* workload
+* reliability
+* performance
+
+Weights must be configurable where specified.
+
+Implement:
+
+* candidate discovery
+* eligibility filtering
+* scoring
+* assignment creation
+* assignment expiry
+* rejection
+* retry
+* reassignment
+* manual assignment
+* manual reassignment
+* dispatch history
+
+Every dispatch decision must be auditable.
+
+Do not hardcode operational assumptions that the specification says should be configurable.
+
+---
+
+# 17. PHASE 9 — PAYMENTS + CASH
+
+Implement payment abstraction.
+
+Support:
+
+```text
+ONLINE
+CASH
+```
+
+Online flow:
+
+```text
+Booking
+↓
+Payment Initiation
+↓
+Payment Gateway
+↓
+Gateway Result/Webhook
+↓
+Server Verification
+↓
+Payment Transaction
+↓
+Booking Payment State
+```
+
+Webhook handling must be:
+
+* verified
+* idempotent
+* auditable
+
+Never mark a payment successful merely because the mobile app says it succeeded.
+
+Cash flow:
+
+```text
+Booking
+↓
+Cash Selected
+↓
+Team Performs Service
+↓
+Cash Collected
+↓
+Collection Recorded
+↓
+Reconciliation
+```
+
+Cash must have explicit state and auditability.
+
+---
+
+# 18. PHASE 10 — SETTLEMENTS
+
+Implement provider settlement separately from customer payment.
+
+Track:
+
+```text
+Customer Payment
+Platform Revenue / Commission
+Provider Payable
+Settlement
+Settlement Payment
+```
+
+Implement:
+
+* settlement calculation
+* provider payable
+* settlement batches
+* settlement status
+* settlement payment
+* reconciliation
+* audit records
+
+Do not mix payment transactions with provider settlement records.
+
+---
+
+# 19. PHASE 11 — NOTIFICATIONS + LOCATION
+
+Implement notifications.
+
+Architecture:
+
+```text
+Backend Domain Event
+↓
+Notification Processing
+↓
+Push Notification Service
+↓
+Device
+```
+
+Push notifications are NOT authoritative business state.
+
+The backend remains authoritative.
+
+Implement notification persistence where specified.
+
+Implement:
+
+* device tokens
+* notification preferences if specified
+* booking notifications
+* assignment notifications
+* operational notifications
+* payment notifications
+
+Location/maps:
+
+Implement abstraction for:
+
+* address selection
+* geocoding
+* reverse geocoding
+* routing
+* distance
+* ETA
+
+Booking location/address must use the historical snapshot model.
+
+Do not overwrite historical booking location when the customer changes their address later.
+
+---
+
+# 20. PHASE 12 — CUSTOMER FLUTTER APPLICATION
+
+Only after the backend domain is sufficiently stable should the customer application be implemented fully.
+
+Use feature-first Flutter architecture.
+
+Suggested structure:
+
+```text
+lib/
+├── core/
+│   ├── config/
+│   ├── networking/
+│   ├── storage/
+│   ├── routing/
+│   ├── localization/
+│   ├── theme/
+│   └── errors/
+│
+├── features/
+│   ├── auth/
+│   ├── home/
+│   ├── services/
+│   ├── booking/
+│   ├── addresses/
+│   ├── payments/
+│   ├── bookings/
+│   ├── tracking/
+│   ├── notifications/
+│   ├── ratings/
+│   ├── support/
+│   └── profile/
+│
+└── main.dart
+```
+
+Implement:
+
+* authentication
+* onboarding
+* home
+* services
+* service details
+* address selection
+* booking creation
+* extras
+* pricing display
+* payment selection
+* online payment
+* cash payment
+* booking confirmation
+* booking history
+* booking details
+* status tracking
+* notifications
+* rating
+* support
+* profile
+
+Use backend APIs.
+
+Do not duplicate backend business rules unnecessarily.
+
+---
+
+# 21. PHASE 13 — PROVIDER FLUTTER APPLICATION
+
+Implement the Provider App separately from the Customer App.
+
+Provider roles:
+
+```text
+COMPANY_MANAGER
+TEAM_LEADER_CLEANER
+```
+
+Company Manager features may include:
+
+* company overview
+* teams
+* team members
+* availability
+* operational bookings
+* assignment management
+* company performance
+* settlement information where authorized
+
+Team Leader/Cleaner features may include:
+
+* assigned jobs
+* assignment acceptance/rejection
+* job details
+* navigation
+* on-the-way
+* start cleaning
+* completion
+* completion proof
+* cash collection where authorized
+
+All actions must be validated server-side.
+
+Provider users must never access another company's data.
+
+---
+
+# 22. PHASE 14 — ADMIN DASHBOARD
+
+Implement the Next.js Admin Dashboard.
+
+Separate administrative concerns from provider concerns.
+
+Admin roles include:
+
+```text
+HOME_CLEAN_ADMIN
+DISPATCHER
+```
+
+Implement dashboards for:
+
+* bookings
+* dispatch
+* companies
+* teams
+* customers
+* services
+* pricing
+* payments
+* refunds
+* settlements
+* notifications
+* support
+* promotions
+* audit logs
+* operational monitoring
+
+Dispatcher must be able to perform documented manual operations.
+
+Manual assignment/reassignment must be audited.
+
+Do not expose sensitive financial/admin functionality to unauthorized roles.
+
+---
+
+# 23. PHASE 15 — RATINGS + SUPPORT + PROMOTIONS
+
+Implement remaining business modules:
+
+* ratings
+* support tickets
+* promotions
+* coupons/discounts if specified
+* customer feedback
+* operational notes where specified
+
+Ensure all modules respect:
+
+* authorization
+* auditability
+* data ownership
+* historical integrity
+
+---
+
+# 24. PHASE 16 — INTEGRATION
+
+Connect all major flows.
+
+Test the complete booking journey.
+
+## Customer flow
+
+```text
+Register/Login
+↓
+Select Service
+↓
+Select Address
+↓
+Configure Booking
+↓
+Calculate Price
+↓
+Confirm Price
+↓
+Select Payment
+↓
+Payment Confirmation
+↓
+Dispatch
+↓
+Team Assignment
+↓
+Team Acceptance
+↓
+Team On The Way
+↓
+Cleaning Started
+↓
+Cleaning Completed
+↓
+Payment Reconciliation
+↓
+Completed
+↓
+Rating
+```
+
+## Provider flow
+
+```text
+Login
+↓
+Receive Assignment
+↓
+View Job
+↓
+Accept
+↓
+Navigate
+↓
+On The Way
+↓
+Start Cleaning
+↓
+Complete Cleaning
+↓
+Submit Proof
+↓
+Cash Collection if applicable
+```
+
+## Admin flow
+
+```text
+Monitor Booking
+↓
+Monitor Dispatch
+↓
+Manual Assignment if Required
+↓
+Monitor Operational State
+↓
+Payment/Reconciliation
+↓
+Settlement
+↓
+Audit
+```
+
+---
+
+# 25. PHASE 17 — SECURITY HARDENING
+
+Perform a security review.
+
+Check:
+
+* authentication
+* authorization
+* IDOR/BOLA vulnerabilities
+* role escalation
+* provider isolation
+* customer isolation
+* admin authorization
+* input validation
+* SQL injection protection
+* XSS protection
+* CSRF where applicable
+* rate limiting
+* OTP abuse
+* token security
+* refresh token handling
+* secrets
+* environment variables
+* payment webhook verification
+* file upload security
+* logging of sensitive data
+* PII exposure
+* error leakage
+* CORS
+* TLS assumptions
+* production configuration
+
+Never commit secrets.
+
+Never place API keys or credentials directly into source code.
+
+---
+
+# 26. PHASE 18 — TESTING
+
+Implement meaningful automated tests.
+
+## Backend
+
+Test:
+
+* authentication
+* authorization
+* provider isolation
+* booking state transitions
+* pricing
+* dispatch eligibility
+* dispatch scoring
+* assignment
+* payment
+* webhook idempotency
+* cash collection
+* refunds
+* settlements
+* notifications
+* historical snapshots
+
+## Flutter
+
+Test:
+
+* models
+* repositories
+* services
+* state management
+* routing
+* important user flows
+
+## Admin
+
+Test important business flows and authorization boundaries.
+
+---
+
+# 27. CRITICAL END-TO-END TEST
+
+Create at least one complete automated/integration scenario representing:
+
+```text
+Customer creates booking
+↓
+Price calculated
+↓
+Price confirmed
+↓
+Payment selected
+↓
+Payment confirmed
+↓
+Dispatch searches teams
+↓
+Eligible team selected
+↓
+Assignment created
+↓
+Provider accepts
+↓
+Provider marks on-the-way
+↓
+Provider starts cleaning
+↓
+Provider completes cleaning
+↓
+Completion proof submitted if required
+↓
+Payment reconciled
+↓
+Booking completed
+↓
+Customer rates service
+```
+
+Also test failure scenarios:
+
+```text
+No team available
+Assignment rejection
+Reassignment
+Customer cancellation
+Provider no-show
+Customer no-show
+Payment failure
+Duplicate webhook
+Cash collection
+Refund
+Manual dispatch
+```
+
+---
+
+# 28. PHASE 19 — DOCKER + DEPLOYMENT
+
+Create a production-oriented deployment setup.
+
+Include:
+
+* PostgreSQL
+* Redis
+* backend
+* admin
+* required workers
+* environment configuration
+
+Docker Compose may be used for local development.
+
+Production deployment must separate secrets from source code.
+
+Document:
+
+* environment variables
+* database setup
+* migrations
+* seed process
+* backend deployment
+* worker deployment
+* admin deployment
+* Flutter configuration
+* external services
+* backups
+* logging
+* monitoring
+
+---
+
+# 29. PHASE 20 — PRODUCTION READINESS
+
+Before declaring the project production-ready, verify:
+
+## Architecture
+
+* backend owns state
+* domain boundaries are clear
+* no unnecessary microservices
+* no business logic hidden only in frontend
+
+## Database
+
+* migrations work
+* constraints work
+* indexes exist
+* relationships work
+* financial precision is correct
+* historical snapshots work
+
+## Security
+
+* authorization is enforced
+* provider isolation works
+* secrets are protected
+* webhook verification works
+
+## Financial
+
+* payment flow works
+* cash flow works
+* refund flow works
+* settlement flow works
+* reconciliation works
+
+## Dispatch
+
+* eligibility works
+* scoring works
+* reassignment works
+* manual dispatch works
+* audit trail exists
+
+## Mobile
+
+* Customer App works
+* Provider App works
+* Arabic RTL works
+* English LTR works
+* API error handling works
+* authentication persistence works
+
+## Admin
+
+* Admin Dashboard works
+* Dispatcher functionality works
+* permissions work
+* audit information is available
+
+## Operations
+
+* notifications work
+* logs work
+* health checks work
+* backups are documented
+* deployment is documented
+
+---
+
+# 30. CODE QUALITY RULES
+
+Write production-quality code.
+
+Avoid:
+
+* unnecessary duplication
+* giant files
+* giant services
+* magic strings
+* hardcoded business rules
+* hidden side effects
+* arbitrary database writes
+* arbitrary status changes
+* client-authoritative financial calculations
+* client-authoritative booking states
+* insecure authorization
+* unused dependencies
+* dead code
+* fake implementations disguised as production functionality
+
+Prefer:
+
+* clear modules
+* typed DTOs
+* domain services
+* transactions
+* dependency injection
+* reusable components
+* testable functions
+* explicit commands
+* structured errors
+* configuration-driven behavior
+
+---
+
+# 31. PLACEHOLDERS
+
+A placeholder is acceptable during early implementation only when the external integration is not yet available.
+
+If you create a placeholder:
+
+1. Clearly identify it.
+2. Document what it represents.
+3. Do not pretend it is production-ready.
+4. Create an abstraction/interface so it can be replaced cleanly.
+5. Track it in `docs/codex-implementation-status.md`.
+
+Example:
+
+```text
+PaymentGatewayAdapter
+```
+
+may initially use a mock adapter for local development.
+
+But the real integration must eventually implement the same contract.
+
+---
+
+# 32. DOCUMENTATION REQUIREMENT
+
+Documentation is part of the implementation.
+
+Whenever you make a material architectural or implementation change, update the relevant Markdown documentation.
+
+Maintain at least:
+
+```text
+docs/
+├── architecture.md
+├── api.md
+├── database.md
+├── deployment.md
+├── codex-implementation-status.md
+└── codex-changelog.md
+```
+
+Also preserve the master specification.
+
+Do NOT overwrite or destroy important architectural documentation.
+
+---
+
+# 33. CODEX CHANGELOG
+
+Maintain:
+
+`docs/codex-changelog.md`
+
+For every major phase record:
+
+```text
+Date
+Phase
+Implemented
+Files Changed
+Database Changes
+API Changes
+Tests
+Validation Commands
+Validation Results
+Known Issues
+Next Step
+```
+
+Keep entries concise but useful.
+
+---
+
+# 34. VALIDATION RULE
+
+This is extremely important.
+
+Never say:
+
+```text
+Done
+```
+
+when you only wrote code.
+
+Instead distinguish:
+
+```text
+Implemented
+```
+
+from:
+
+```text
+Validated
+```
+
+Example:
+
+```text
+Prisma schema implemented.
+Prisma schema validation: PASS.
+Migration validation: PASS.
+Integration test: NOT YET RUN.
+```
+
+If Flutter cannot be executed because Flutter SDK is unavailable:
+
+```text
+Flutter implementation: COMPLETE
+Flutter validation: BLOCKED — Flutter SDK unavailable
+```
+
+Do not falsely claim success.
+
+---
+
+# 35. FAILURE HANDLING
+
+If a phase fails:
+
+DO NOT continue blindly.
+
+Use:
+
+```text
+Implement
+↓
+Test
+↓
+Failure
+↓
+Diagnose
+↓
+Fix
+↓
+Test Again
+↓
+Pass
+↓
+Continue
+```
+
+If the issue is external and cannot be resolved:
+
+Mark:
+
+`BLOCKED`
+
+Explain:
+
+* exact blocker
+* evidence
+* what has been completed
+* what is required to unblock
+
+---
+
+# 36. DEPENDENCY RULE
+
+Before implementing a feature, verify that its dependencies are complete enough.
+
+Example:
+
+Do NOT fully implement dispatch before:
+
+* Company exists
+* Team exists
+* TeamMember exists
+* Service exists
+* Booking exists
+* Booking pricing exists
+* availability exists
+
+Do NOT implement settlement before:
+
+* payment
+* booking completion
+* provider payable calculation
+
+Do NOT implement mobile booking UI before the corresponding API/domain contract is stable enough.
+
+---
+
+# 37. API CONTRACT RULE
+
+API contracts must be explicit.
+
+For each endpoint document:
+
+```text
+Method
+Path
+Authentication
+Required Role
+Request DTO
+Response DTO
+Validation
+Errors
+Idempotency
+Side Effects
+```
+
+Keep API documentation synchronized with implementation.
+
+---
+
+# 38. DATABASE MIGRATION RULE
+
+Never modify production database structure manually without a migration.
+
+Every schema change must result in a Prisma migration.
+
+Never casually delete migrations.
+
+Never rewrite migration history after it has been shared/applied unless there is an explicit documented migration strategy.
+
+---
+
+# 39. GIT RULE
+
+Work in small logical commits where appropriate.
+
+Suggested commit structure:
+
+```text
+chore: audit repository
+feat: validate database foundation
+feat: implement auth
+feat: implement booking engine
+feat: implement pricing
+feat: implement dispatch
+feat: implement payments
+feat: implement settlements
+feat: implement customer app
+feat: implement provider app
+feat: implement admin dashboard
+test: add booking integration tests
+chore: production hardening
+```
+
+Do not create meaningless commits for every tiny edit.
+
+Before major work, ensure the working tree state is understood.
+
+---
+
+# 40. DO NOT ASK FOR PERMISSION FOR NORMAL ENGINEERING DECISIONS
+
+Do not repeatedly stop and ask:
+
+"Should I implement X?"
+
+If the master specification clearly defines X:
+
+IMPLEMENT IT.
+
+Only ask for clarification when:
+
+* requirements genuinely conflict
+* critical information is missing
+* an external credential/account is required
+* an irreversible production action is required
+* there are multiple materially different interpretations that cannot safely be resolved
+
+Otherwise make the smallest architecture-consistent decision and document it.
+
+---
+
+# 41. DO NOT SKIP TO UI
+
+The first implementation priority is:
+
+```text
+Repository
+↓
+Infrastructure
+↓
+Database
+↓
+Backend
+↓
+Auth
+↓
+Domain
+↓
+Booking
+↓
+Pricing
+↓
+Dispatch
+↓
+Payments
+↓
+Settlements
+↓
+Notifications/Location
+↓
+Customer App
+↓
+Provider App
+↓
+Admin
+↓
+Testing
+↓
+Production
+```
+
+Do not spend the first development sessions polishing UI while the backend architecture remains incomplete.
+
+---
+
+# 42. DO NOT REBUILD WHAT ALREADY WORKS
+
+Before creating a module:
+
+1. Search for an existing implementation.
+2. Understand it.
+3. Reuse it if correct.
+4. Refactor if necessary.
+5. Replace it only if it conflicts with the specification.
+
+Avoid unnecessary rewrites.
+
+---
+
+# 43. CURRENT FOUNDATION
+
+The repository may already contain Phase 12 / Phase 12A foundation work.
+
+Treat existing implementation as a starting point, NOT as automatically validated production code.
+
+Specifically verify:
+
+* Prisma schema
+* migrations
+* seed
+* relation graph
+* PostgreSQL
+* backend structure
+* Docker
+* Flutter foundations
+* admin foundations
+
+Do not assume they work merely because files exist.
+
+---
+
+# 44. FIRST CODEx SESSION
+
+Your FIRST session must do ONLY the following:
+
+### Step 1
+
+Read:
+
+`Home_Clean_App_Complete_Design_Until_Phase_12A.md`
+
+completely.
+
+### Step 2
+
+Inspect the repository.
+
+### Step 3
+
+Build a repository map.
+
+### Step 4
+
+Create/update:
+
+`docs/codex-implementation-status.md`
+
+### Step 5
+
+Create/update:
+
+`docs/codex-changelog.md`
+
+### Step 6
+
+Identify the exact current implementation phase.
+
+### Step 7
+
+Validate the existing foundation.
+
+### Step 8
+
+Validate PostgreSQL + Prisma + migrations + seed.
+
+### Step 9
+
+Fix foundation problems.
+
+### Step 10
+
+Run validation again.
+
+### Step 11
+
+Only after the foundation passes, begin the next implementation phase.
+
+DO NOT start by building the Customer UI.
+
+DO NOT start by designing screens.
+
+DO NOT replace the architecture.
+
+---
+
+# 45. SESSION COMPLETION REPORT
+
+At the end of EVERY meaningful development session, provide:
+
+```text
+========================================
+HOME CLEAN CODEX SESSION REPORT
+========================================
+
+Current Phase:
+Phase X — Name
+
+Implemented:
+- ...
+- ...
+
+Validated:
+- ...
+- ...
+
+Validation Commands:
+- ...
+- ...
+
+Validation Results:
+- PASS
+- PASS
+- BLOCKED
+- NOT RUN
+
+Files Changed:
+- ...
+- ...
+
+Database Changes:
+- ...
+
+API Changes:
+- ...
+
+Flutter Changes:
+- ...
+
+Admin Changes:
+- ...
+
+Documentation Updated:
+- ...
+
+Known Issues:
+- ...
+
+Blocked:
+- ...
+
+Next Phase:
+Phase X — Name
+
+Next Immediate Task:
+...
+========================================
+```
+
+Do not claim completion if validation failed.
+
+---
+
+# 46. FINAL DEFINITION OF DONE
+
+The project is considered complete only when:
+
+```text
+Architecture implemented
+AND
+Database implemented
+AND
+Backend implemented
+AND
+Authentication implemented
+AND
+Authorization implemented
+AND
+Booking lifecycle implemented
+AND
+Pricing implemented
+AND
+Dispatch implemented
+AND
+Payments implemented
+AND
+Cash flow implemented
+AND
+Settlements implemented
+AND
+Notifications implemented
+AND
+Location integration implemented
+AND
+Customer App implemented
+AND
+Provider App implemented
+AND
+Admin Dashboard implemented
+AND
+Ratings implemented
+AND
+Support implemented
+AND
+Promotions implemented
+AND
+Security reviewed
+AND
+Automated tests implemented
+AND
+Integration tests pass
+AND
+Docker/deployment documented
+AND
+Production configuration documented
+AND
+Known blockers resolved
+```
+
+---
+
+# 47. MOST IMPORTANT INSTRUCTION
+
+**Do the work in order.**
+
+Do not jump randomly between phases.
+
+Do not optimize for how much code you can write in one response.
+
+Optimize for:
+
+```text
+Correctness
+→
+Architecture
+→
+Validation
+→
+Security
+→
+Maintainability
+→
+Production readiness
+```
+
+The final result must be a coherent system, not a collection of disconnected features.
+
+Start now with:
+
+**PHASE 0 — REPOSITORY AUDIT**
+
+Then proceed sequentially through the implementation plan.
+
+Do not begin Phase 1 until Phase 0 has been documented.
+
+Do not begin Phase 2 until Phase 1 has been validated.
+
+Continue this pattern for every subsequent phase.

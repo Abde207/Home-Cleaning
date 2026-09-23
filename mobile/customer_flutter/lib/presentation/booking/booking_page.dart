@@ -6,6 +6,7 @@ import '../../core/errors/app_exception.dart';
 import '../../core/errors/customer_error_text.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/widgets/app_widgets.dart';
+import '../../domain/booking/booking_models.dart';
 import 'booking_components.dart';
 import 'booking_text.dart';
 
@@ -131,7 +132,7 @@ class _BookingPageState extends State<BookingPage> with WidgetsBindingObserver {
     final payment = d.latestPayment;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       BookingStatusChip(status: d.status), BookingDetailCard(booking: d), BookingTimeline(booking: d),
-      if (d.status == 'TEAM_ON_THE_WAY') Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(t.noLiveLocation)),
+      if (d.status == 'TEAM_ON_THE_WAY') _trackingCard(t, c.tracking),
       if (payment?.method == 'ONLINE' && payment?.status == 'PENDING') ...[Text(t.paymentPending), if (c.initiatedPayment?.checkoutUrl?.contains('mock-payments.invalid') == true) Text(t.mockGateway)],
       if (payment?.method == 'ONLINE' && payment?.status == 'PENDING' && c.initiatedPayment?.checkoutUrl?.startsWith('https://') == true && c.initiatedPayment?.checkoutUrl?.contains('mock-payments.invalid') != true)
         OutlinedButton(onPressed: _openCheckout, child: Text(t.openCheckout)),
@@ -141,6 +142,19 @@ class _BookingPageState extends State<BookingPage> with WidgetsBindingObserver {
       if (d.canCancel) OutlinedButton(onPressed: c.submitting ? null : _cancel, child: Text(t.cancelBooking)),
       TextButton(onPressed: () { c.newBooking(); }, child: Text(t.newBooking)),
     ]);
+  }
+
+  Widget _trackingCard(BookingText t, TeamTracking? tracking) {
+    if (tracking?.hasLocation != true) return Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(t.noLiveLocation));
+    final value = tracking!;
+    final eta = value.etaSeconds == null ? t.etaUnavailable : t.minutesAway((value.etaSeconds! / 60).ceil());
+    return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(t.teamLocation, style: Theme.of(context).textTheme.titleMedium),
+      Text('${value.latitude!.toStringAsFixed(6)}, ${value.longitude!.toStringAsFixed(6)}'),
+      Text('${t.lastUpdated}: ${value.updatedAt!.toLocal()}'),
+      Text('${t.eta}: $eta'),
+      if (value.locationStale || value.etaStale) Text(t.staleLocation, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+    ])));
   }
 
   Future<void> _chooseSchedule() async {

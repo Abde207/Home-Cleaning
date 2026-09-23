@@ -79,6 +79,29 @@ class BookingStatusEvent {
   final DateTime? createdAt;
 }
 
+class TeamTracking {
+  const TeamTracking({required this.active, required this.etaStale, required this.etaUnavailable,
+    this.latitude, this.longitude, this.updatedAt, this.locationStale = false, this.etaSeconds});
+  factory TeamTracking.fromJson(Map<String, dynamic> json) {
+    final location = objectMap(json['location']);
+    return TeamTracking(
+      active: json['active'] == true,
+      latitude: (location['latitude'] as num?)?.toDouble(),
+      longitude: (location['longitude'] as num?)?.toDouble(),
+      updatedAt: instant(location['updatedAt']),
+      locationStale: location['stale'] == true,
+      etaSeconds: (json['etaSeconds'] as num?)?.toInt(),
+      etaStale: json['etaStale'] == true || location['stale'] == true,
+      etaUnavailable: json['etaUnavailable'] == true || json['etaSeconds'] == null,
+    );
+  }
+  final bool active, locationStale, etaStale, etaUnavailable;
+  final double? latitude, longitude;
+  final DateTime? updatedAt;
+  final int? etaSeconds;
+  bool get hasLocation => latitude != null && longitude != null && updatedAt != null;
+}
+
 class BookingDetail {
   const BookingDetail({required this.id, required this.number, required this.status, required this.paymentMethod, required this.price, required this.currency, required this.scheduledAt, required this.serviceName, required this.serviceNameAr, required this.address, required this.property, required this.extras, required this.priceSnapshot, required this.payments, required this.assignmentStatus, this.statusHistory = const []});
   factory BookingDetail.fromJson(Map<String, dynamic> json) {

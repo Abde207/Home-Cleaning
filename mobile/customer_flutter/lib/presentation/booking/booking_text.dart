@@ -52,6 +52,12 @@ class BookingText {
   String get timeline => ar ? 'تسلسل حالة الحجز' : 'Booking timeline';
   String get refund => ar ? 'الاسترداد' : 'Refund';
   String get noLiveLocation => ar ? 'موقع الفريق ووقت الوصول غير متاحين حالياً.' : 'Team location and arrival time are currently unavailable.';
+  String get teamLocation => ar ? 'موقع الفريق' : 'Team location';
+  String get lastUpdated => ar ? 'آخر تحديث' : 'Last updated';
+  String get eta => ar ? 'وقت الوصول المتوقع' : 'Estimated arrival';
+  String get etaUnavailable => ar ? 'وقت الوصول غير متاح' : 'ETA unavailable';
+  String get staleLocation => ar ? 'الموقع ووقت الوصول قديمان' : 'Location and ETA are stale';
+  String minutesAway(int value) => ar ? '$value دقيقة تقريباً' : 'About $value min';
   String get loadFailed => ar ? 'تعذر تحميل البيانات. حاول مرة أخرى.' : 'Could not load the data. Try again.';
   String get noServices => ar ? 'لا توجد خدمات متاحة.' : 'No services available.';
   String get noAddresses => ar ? 'لا توجد عناوين. أضف عنواناً للمتابعة.' : 'No addresses. Add one to continue.';

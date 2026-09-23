@@ -3,7 +3,7 @@ import { Prisma, type DeliveryStatus } from '@prisma/client';
 import { PrismaService } from '../database/database.module.js';
 import type { Actor } from '../auth/authorization.js';
 import type { ListQueryDto } from '../core/core.dto.js';
-import { InvalidPushTokenError, type PushNotificationProvider } from './notification.provider.js';
+import { InvalidPushTokenError, PushProviderConfigurationError, RetryablePushError, type PushNotificationProvider } from './notification.provider.js';
 import type { DeviceTokenDto } from './notification.dto.js';
 
 export const PUSH_NOTIFICATION_PROVIDER = 'PUSH_NOTIFICATION_PROVIDER';
@@ -170,10 +170,12 @@ export class NotificationService {
           data: (payload.data ?? {}) as Record<string, string> });
       } catch (error) {
         const invalid = error instanceof InvalidPushTokenError;
-        const terminal = invalid || claimed.attemptNumber >= MAX_DELIVERY_ATTEMPTS;
+        const configuration = error instanceof PushProviderConfigurationError;
+        const terminal = invalid || configuration || claimed.attemptNumber >= MAX_DELIVERY_ATTEMPTS;
         const recorded = await this.db.$transaction(async tx => {
-          const code = invalid ? 'DEVICE_TOKEN_INVALID' : 'PUSH_DELIVERY_FAILED';
-          const updated = await tx.notificationDelivery.updateMany({ where: { id: row.id, status: 'SENDING', attempts: claimed.attemptNumber }, data: { status: terminal ? 'FAILED' : 'PENDING', nextAttemptAt: terminal ? null : new Date(Date.now() + 2 ** claimed.attemptNumber * 1000), lastError: code } });
+          const code = invalid ? 'DEVICE_TOKEN_INVALID' : configuration ? 'PUSH_PROVIDER_CONFIGURATION_INVALID' : 'PUSH_DELIVERY_FAILED';
+          const retryAfter = error instanceof RetryablePushError ? error.retryAfterMs : undefined;
+          const updated = await tx.notificationDelivery.updateMany({ where: { id: row.id, status: 'SENDING', attempts: claimed.attemptNumber }, data: { status: terminal ? 'FAILED' : 'PENDING', nextAttemptAt: terminal ? null : new Date(Date.now() + (retryAfter ?? 2 ** claimed.attemptNumber * 1000)), lastError: code } });
           if (!updated.count) return false;
           await tx.notificationDeliveryAttempt.create({ data: { deliveryId: row.id, attemptNumber: claimed.attemptNumber, status: terminal ? 'FAILED' : 'PENDING', error: code } });
           if (invalid && claimed.deviceTokenId) await tx.deviceToken.update({ where: { id: claimed.deviceTokenId }, data: { active: false, invalidatedAt: new Date() } });

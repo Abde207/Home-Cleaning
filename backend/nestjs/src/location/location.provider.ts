@@ -13,6 +13,9 @@ export interface RoutingProvider {
   etaSeconds(from: GeoPoint, to: GeoPoint): Promise<number | null>;
 }
 
+export const GEOCODING_PROVIDER = 'GEOCODING_PROVIDER';
+export const ROUTING_PROVIDER = 'ROUTING_PROVIDER';
+
 /** Local tests can explicitly model an unavailable road route. */
 export class UnavailableRoutingProvider implements RoutingProvider {
   readonly name = 'unavailable-local';

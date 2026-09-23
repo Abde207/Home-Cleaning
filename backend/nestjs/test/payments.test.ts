@@ -59,6 +59,10 @@ test('Phase 9 online, cash, refund, settlement and authorization boundaries are 
     assert.equal(mismatch.status, 200);
     assert.equal(mismatch.body.data.accepted, false);
     assert.equal((await db.payment.findUniqueOrThrow({ where: { id: payment.id } })).status, 'PENDING');
+    assert.equal((await webhook({ eventId: `p9-wrong-attempt-${suffix}`, type: 'SUCCEEDED', paymentReference: payment.providerReference,
+      transactionReference: `p9-wrong-attempt-txn-${suffix}`, amount: '25.00', currency: 'JOD', attemptId: randomUUID(), bookingReference: online.bookingNumber })).status, 409);
+    assert.equal((await webhook({ eventId: `p9-wrong-booking-${suffix}`, type: 'SUCCEEDED', paymentReference: payment.providerReference,
+      transactionReference: `p9-wrong-booking-txn-${suffix}`, amount: '25.00', currency: 'JOD', attemptId: payment.attempt.id, bookingReference: 'BOOKING-WRONG' })).status, 409);
     const successEvent = { eventId: `p9-success-${suffix}`, type: 'SUCCEEDED', paymentReference: payment.providerReference, transactionReference: `p9-capture-${suffix}`, amount: '25.00', currency: 'JOD' };
     assert.equal((await webhook(successEvent)).body.data.accepted, true);
     assert.equal((await webhook(successEvent)).body.data.duplicate, true);

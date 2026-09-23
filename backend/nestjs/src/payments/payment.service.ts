@@ -118,7 +118,8 @@ export class PaymentService {
       const existing = payment.attempts.find(attempt => attempt.requestKey === this.requireKey(key));
       if (existing?.providerReference) return this.paymentResponse(payment, existing);
       const attempt = existing ?? await tx.paymentAttempt.create({ data: { id: stableUuid(`payment-create:${actor.userId}:${booking.id}:${this.requireKey(key)}`), paymentId: payment.id, provider: this.provider.name, attemptNumber: payment.attempts.length + 1, status: 'INITIATED', requestKey: this.requireKey(key), amount: payment.amount, currency: payment.currency } });
-      const created = await this.provider.createPayment({ paymentId: payment.id, attemptId: attempt.id, amount: payment.amount.toString(), currency: payment.currency, bookingNumber: booking.bookingNumber });
+      const customer = await tx.customer.findUniqueOrThrow({ where: { id: booking.customerId }, select: { user: { select: { phone: true } } } });
+      const created = await this.provider.createPayment({ paymentId: payment.id, attemptId: attempt.id, amount: payment.amount.toString(), currency: payment.currency, bookingNumber: booking.bookingNumber, customerPhone: customer.user.phone });
       const updatedAttempt = await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { status: 'PENDING', providerReference: created.providerReference, checkoutUrl: created.checkoutUrl } });
       const updatedPayment = await tx.payment.update({ where: { id: payment.id }, data: { provider: this.provider.name, transactionReference: created.providerReference } });
       await audit(tx, { actor, requestId: `payment-create:${key}` }, 'PAYMENT_INITIATED', 'Payment', payment.id, { bookingId: booking.id, provider: this.provider.name, attemptId: attempt.id });
@@ -135,7 +136,8 @@ export class PaymentService {
       const attempt = await tx.paymentAttempt.create({ data: { id: stableUuid(`payment-retry:${actor.userId}:${paymentId}:${this.requireKey(key)}`), paymentId, provider: this.provider.name, attemptNumber: payment.attempts.length + 1, status: 'INITIATED', requestKey: this.requireKey(key), amount: payment.amount, currency: payment.currency } });
       await this.paymentHistory(tx, payment.id, 'FAILED', 'PENDING', 'ONLINE_PAYMENT_RETRY', actor.userId);
       await tx.payment.update({ where: { id: payment.id }, data: { status: 'PENDING' } });
-      const created = await this.provider.createPayment({ paymentId, attemptId: attempt.id, amount: payment.amount.toString(), currency: payment.currency, bookingNumber: payment.booking.bookingNumber });
+      const customer = await tx.customer.findUniqueOrThrow({ where: { id: payment.booking.customerId }, select: { user: { select: { phone: true } } } });
+      const created = await this.provider.createPayment({ paymentId, attemptId: attempt.id, amount: payment.amount.toString(), currency: payment.currency, bookingNumber: payment.booking.bookingNumber, customerPhone: customer.user.phone });
       const updatedAttempt = await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { status: 'PENDING', providerReference: created.providerReference, checkoutUrl: created.checkoutUrl } });
       const updatedPayment = await tx.payment.update({ where: { id: payment.id }, data: { provider: this.provider.name, transactionReference: created.providerReference } });
       await audit(tx, { actor, requestId: `payment-retry:${key}` }, 'PAYMENT_RETRIED', 'Payment', payment.id, { attemptId: attempt.id });
@@ -161,6 +163,8 @@ export class PaymentService {
         const amount = new Prisma.Decimal(event.amount);
         const amountMatches = amount.eq(payment.amount) && event.currency === payment.currency;
         if (event.attemptId !== undefined && event.attemptId !== attempt.id) throw new ConflictException({ code: 'PAYMENT_ATTEMPT_REFERENCE_MISMATCH' });
+        if (event.bookingReference !== undefined && event.bookingReference !== payment.booking.bookingNumber)
+          throw new ConflictException({ code: 'PAYMENT_BOOKING_REFERENCE_MISMATCH' });
         const eventType = event.type === 'SUCCEEDED' ? 'PAYMENT_CONFIRMED' : 'PAYMENT_FAILED';
         await tx.paymentEvent.create({ data: { paymentId: payment.id, provider: providerName, eventId: event.eventId, type: amountMatches ? eventType : 'PAYMENT_REJECTED_AMOUNT', payloadHash: event.payloadHash, signatureVerified: true, verifiedAt: new Date() } });
         if (!amountMatches) {

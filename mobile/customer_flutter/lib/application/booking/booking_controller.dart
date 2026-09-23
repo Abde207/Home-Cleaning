@@ -24,6 +24,7 @@ class BookingController extends ChangeNotifier {
   BookingQuote? quote;
   BookingDetail? detail;
   BookingPayment? initiatedPayment;
+  TeamTracking? tracking;
   AppException? error;
   bool loading = false;
   bool submitting = false;
@@ -205,7 +206,7 @@ class BookingController extends ChangeNotifier {
     final epoch = _sessionEpoch;
     final request = ++_detailRequest;
     _detailId = id; step = BookingStep.details; loading = true; error = null; detail = null; notifyListeners();
-    try { final result = await _bookings.detail(id); if (epoch == _sessionEpoch && request == _detailRequest) detail = result; }
+    try { final result = await _bookings.detail(id); if (epoch == _sessionEpoch && request == _detailRequest) { detail = result; tracking = await _tracking(result); } }
     on Object catch (value) { if (epoch == _sessionEpoch && request == _detailRequest) error = _error(value); }
     finally { if (epoch == _sessionEpoch && request == _detailRequest) { loading = false; notifyListeners(); } }
   }
@@ -217,7 +218,7 @@ class BookingController extends ChangeNotifier {
     final request = _detailRequest;
     final id = detail!.id;
     loading = true; error = null; notifyListeners();
-    try { final result = await _bookings.detail(id); if (epoch == _sessionEpoch && request == _detailRequest && detail?.id == id) { detail = result; if (detail!.latestPayment?.status != 'FAILED') _retryKey = null; } }
+    try { final result = await _bookings.detail(id); if (epoch == _sessionEpoch && request == _detailRequest && detail?.id == id) { detail = result; tracking = await _tracking(result); if (detail!.latestPayment?.status != 'FAILED') _retryKey = null; } }
     on Object catch (value) { if (epoch == _sessionEpoch && request == _detailRequest) error = _error(value); }
     finally { if (epoch == _sessionEpoch && request == _detailRequest) { loading = false; notifyListeners(); } }
   }
@@ -233,6 +234,12 @@ class BookingController extends ChangeNotifier {
     finally { if (epoch == _sessionEpoch) { submitting = false; notifyListeners(); } }
   }
 
+  Future<TeamTracking?> _tracking(BookingDetail booking) async {
+    if (booking.status != 'TEAM_ON_THE_WAY') return null;
+    try { return await _bookings.tracking(booking.id); }
+    on Object { return const TeamTracking(active: true, etaStale: false, etaUnavailable: true); }
+  }
+
   Future<void> cancel({String? reason}) async {
     if (detail == null || submitting) return;
     submitting = true; error = null; notifyListeners();
@@ -243,6 +250,6 @@ class BookingController extends ChangeNotifier {
     finally { if (epoch == _sessionEpoch) { submitting = false; notifyListeners(); } }
   }
 
-  void newBooking() { if (hasUnresolvedCreate || submitting) { error = const AppException(kind: AppExceptionKind.timeout, message: 'Retry the booking request to resolve its result.'); notifyListeners(); return; } _draftEpoch++; _detailRequest++; selection = BookingSelection(); detail = null; initiatedPayment = null; quote = null; _pendingCreate = null; _committedPaymentChoice = null; _createKey = null; _confirmKey = null; _paymentKey = null; _retryKey = null; _cancelKey = null; _detailId = null; paymentChoice = PaymentChoice.cash; step = BookingStep.service; notifyListeners(); }
-  void clearSession() { _sessionEpoch++; _draftEpoch++; _detailRequest++; selection = BookingSelection(); services = const []; addresses = const []; properties = const []; detail = null; initiatedPayment = null; quote = null; error = null; loading = submitting = false; _pendingCreate = null; _committedPaymentChoice = null; _createKey = null; _confirmKey = null; _paymentKey = null; _retryKey = null; _cancelKey = null; _detailId = null; paymentChoice = PaymentChoice.cash; step = BookingStep.service; notifyListeners(); }
+  void newBooking() { if (hasUnresolvedCreate || submitting) { error = const AppException(kind: AppExceptionKind.timeout, message: 'Retry the booking request to resolve its result.'); notifyListeners(); return; } _draftEpoch++; _detailRequest++; selection = BookingSelection(); detail = null; tracking = null; initiatedPayment = null; quote = null; _pendingCreate = null; _committedPaymentChoice = null; _createKey = null; _confirmKey = null; _paymentKey = null; _retryKey = null; _cancelKey = null; _detailId = null; paymentChoice = PaymentChoice.cash; step = BookingStep.service; notifyListeners(); }
+  void clearSession() { _sessionEpoch++; _draftEpoch++; _detailRequest++; selection = BookingSelection(); services = const []; addresses = const []; properties = const []; detail = null; tracking = null; initiatedPayment = null; quote = null; error = null; loading = submitting = false; _pendingCreate = null; _committedPaymentChoice = null; _createKey = null; _confirmKey = null; _paymentKey = null; _retryKey = null; _cancelKey = null; _detailId = null; paymentChoice = PaymentChoice.cash; step = BookingStep.service; notifyListeners(); }
 }

@@ -1,6 +1,10 @@
 # Home Clean implementation status
 
-## Phase 15 Batch 1 foundation — implemented and locally validated; Git commit blocked
+## Phase 15 Batch 2 external services — implemented to provider-decision boundary; validation in progress
+
+Twilio Verify, Tap hosted checkout/webhook/refund, FCM HTTP v1 with Firebase APNs bridge, scoped live tracking, Customer tracking display, and secure local object-storage boundaries are implemented with fake-provider tests and production fail-closed configuration. Continuation hardening added bounded Twilio/Tap retries, Tap booking/attempt reference checks, precise FCM token/configuration/retry classification, reassignment-safe location visibility, route ETA availability/staleness, expiring private-object access and safe deletion. Final Booking completion no longer requires a completion proof. Maps and object-storage vendors remain pending; durable Tap reconciliation, native Firebase token acquisition, Provider GPS publishing, and chat/complaint attachment domains remain incomplete. See [Batch 2 report](phase15-batch2-external-services-report.md).
+
+## Phase 15 Batch 1 foundation — implemented and locally validated
 
 Phase 15B/15H/15I add repository CI gates and a high-confidence secret scan; staging/production PostgreSQL and Redis TLS/credential policy; durable notification claim recovery, bounded outbox failures, redacted worker errors and focused restart/concurrency tests. PostgreSQL remains authoritative. No schema, migration, real provider, production infrastructure or deployment was changed. Local backend, database, Admin, Flutter, Compose, secret and separate-process Dispatch gates passed; hosted CI and production services were not exercised. Managed data services, real provider credentials, live push deduplication, Admin shared refresh coordination and production operations remain open. This workspace denies `.git/index.lock` creation, so normal commits and synchronization remain blocked. See [Batch 1 report](phase15-batch1-foundation-report.md) for exact validation results and limitations.
 

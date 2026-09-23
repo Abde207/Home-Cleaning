@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/database.module.js';
 import type { Actor } from '../auth/authorization.js';
 import type { TeamLocationDto } from './tracking.dto.js';
+import { ROUTING_PROVIDER, type RoutingProvider } from './location.provider.js';
 
 export function distanceMeters(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
   const radians = Math.PI / 180;
@@ -13,7 +14,8 @@ export function distanceMeters(a: { latitude: number; longitude: number }, b: { 
 
 @Injectable()
 export class TrackingService {
-  constructor(private readonly db: PrismaService, @Inject(ConfigService) private readonly config: ConfigService) {}
+  constructor(private readonly db: PrismaService, @Inject(ConfigService) private readonly config: ConfigService,
+    @Inject(ROUTING_PROVIDER) private readonly routing: RoutingProvider) {}
   async update(actor: Actor, assignmentId: string, point: TeamLocationDto) {
     const assignment = await this.db.assignment.findUnique({ where: { id: assignmentId },
       include: { booking: { select: { id: true, status: true, locationLatitude: true, locationLongitude: true, scheduledAt: true } } } });
@@ -47,18 +49,28 @@ export class TrackingService {
     const customer = await this.db.customer.findUnique({ where: { userId: actor.userId }, select: { id: true } });
     if (!customer) throw new NotFoundException();
     const booking = await this.db.booking.findFirst({ where: { id: bookingId, customerId: customer.id },
-      select: { status: true, assignments: { where: { status: 'ACCEPTED' }, take: 1, orderBy: { assignedAt: 'desc' },
-        select: { id: true, team: { select: { latitude: true, longitude: true, locationAt: true } } } },
+      select: { status: true, locationLatitude: true, locationLongitude: true,
+        assignments: { where: { status: 'ACCEPTED' }, take: 1, orderBy: { assignedAt: 'desc' },
+        select: { id: true, assignedAt: true, acceptedAt: true, team: { select: { latitude: true, longitude: true, locationAt: true } } } },
         history: { where: { newStatus: 'TEAM_ON_THE_WAY' }, orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } } } });
     if (!booking) throw new NotFoundException();
     if (booking.status !== 'TEAM_ON_THE_WAY') return { active: false, location: null, etaSeconds: null };
     const assignment = booking.assignments[0];
     const started = booking.history[0]?.createdAt;
     const team = assignment?.team;
-    if (!team?.locationAt || !started || team.locationAt < started || team.latitude === null || team.longitude === null)
+    const assignmentStarted = assignment?.acceptedAt ?? assignment?.assignedAt;
+    const visibleAfter = started && assignmentStarted && started > assignmentStarted ? started : assignmentStarted ?? started;
+    if (!team?.locationAt || !visibleAfter || team.locationAt < visibleAfter || team.latitude === null || team.longitude === null)
       return { active: true, location: null, etaSeconds: null };
     const ageSeconds = Math.max(0, Math.floor((Date.now() - team.locationAt.getTime()) / 1000));
+    const stale = ageSeconds > Number(this.config.get('TRACKING_STALE_SECONDS') ?? 120);
+    let etaSeconds: number | null = null;
+    try {
+      etaSeconds = await this.routing.etaSeconds({ latitude: Number(team.latitude), longitude: Number(team.longitude) },
+        { latitude: Number(booking.locationLatitude), longitude: Number(booking.locationLongitude) });
+      if (etaSeconds !== null && (!Number.isInteger(etaSeconds) || etaSeconds < 0 || etaSeconds > 86400)) etaSeconds = null;
+    } catch { etaSeconds = null; }
     return { active: true, location: { latitude: Number(team.latitude), longitude: Number(team.longitude), updatedAt: team.locationAt,
-      stale: ageSeconds > Number(this.config.get('TRACKING_STALE_SECONDS') ?? 120) }, etaSeconds: null };
+      stale }, etaSeconds, etaStale: stale, etaUnavailable: etaSeconds === null };
   }
 }

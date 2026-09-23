@@ -23,5 +23,6 @@ class BookingRepositoryImpl implements BookingRepository {
   @override Future<BookingPayment> startOnline(String bookingId, String key) async => BookingPayment.fromJson(await client.post('/payments', body: {'bookingId': bookingId}, idempotencyKey: key) as Map<String, dynamic>);
   @override Future<BookingPayment> retryOnline(String paymentId, String key) async => BookingPayment.fromJson(await client.post('/payments/$paymentId/retry', idempotencyKey: key) as Map<String, dynamic>);
   @override Future<BookingDetail> detail(String bookingId) async => BookingDetail.fromJson(await client.get('/bookings/$bookingId') as Map<String, dynamic>);
+  @override Future<TeamTracking> tracking(String bookingId) async => TeamTracking.fromJson(await client.get('/tracking/bookings/$bookingId') as Map<String, dynamic>);
   @override Future<void> cancel(String bookingId, String key, {String? reason}) async { await client.post('/bookings/$bookingId/cancel', idempotencyKey: key, body: {if (reason != null && reason.isNotEmpty) 'reason': reason}); }
 }

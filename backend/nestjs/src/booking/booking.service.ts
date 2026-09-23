@@ -503,11 +503,9 @@ export class BookingService {
     this.requirePermission(actor, ['payment:manage', 'booking:operations']);
     return this.idempotent(actor, key, 'BOOKING_COMPLETE', { id }, async tx => {
       const booking = await this.locked(actor, id, true, tx);
-      const proof = await tx.completionProof.findFirst({ where: { assignment: { bookingId: id } }, select: { id: true } });
       const payment = await this.lockedPayment(tx, id);
-      if (!proof) throw new ConflictException({ code: 'COMPLETION_PROOF_REQUIRED' });
       if (!payment || payment.status !== 'RECONCILED') throw new ConflictException({ code: 'PAYMENT_NOT_RECONCILED' });
-      return this.recordTransition(tx, actor, `booking-complete:${key}`, booking, 'COMPLETED', 'BOOKING_COMPLETED', undefined, { command: 'CompleteBooking', proofId: proof.id });
+      return this.recordTransition(tx, actor, `booking-complete:${key}`, booking, 'COMPLETED', 'BOOKING_COMPLETED', undefined, { command: 'CompleteBooking' });
     });
   }
 

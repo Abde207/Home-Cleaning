@@ -7,7 +7,7 @@ const secret = 'unit-payment-webhook-secret';
 const provider = new MockPaymentProvider(secret);
 
 test('payment provider creates a checkout reference without treating it as success', async () => {
-  const result = await provider.createPayment({ paymentId: 'p', attemptId: 'a', amount: '25.00', currency: 'JOD', bookingNumber: 'HC-1' });
+  const result = await provider.createPayment({ paymentId: 'p', attemptId: 'a', amount: '25.00', currency: 'JOD', bookingNumber: 'HC-1', customerPhone: '+962790000000' });
   assert.match(result.providerReference, /^mock-pay-/);
   assert.match(result.checkoutUrl, /checkout/);
 });

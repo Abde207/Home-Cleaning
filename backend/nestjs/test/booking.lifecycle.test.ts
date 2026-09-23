@@ -61,7 +61,6 @@ test('booking lifecycle boundaries keep quote, payment, assignment, proof, no-sh
     assert.equal((await request('POST', `/assignments/${assignmentId}/on-the-way`, cleaner.token, `life-way-${suffix}`)).body.data.status, 'TEAM_ON_THE_WAY');
     assert.equal((await request('POST', `/assignments/${assignmentId}/start-cleaning`, cleaner.token, `life-start-${suffix}`)).body.data.status, 'CLEANING_STARTED');
     assert.equal((await request('POST', `/assignments/${assignmentId}/complete-cleaning`, cleaner.token, `life-finish-${suffix}`)).body.data.status, 'COMPLETED');
-    assert.equal((await request('POST', `/assignments/${assignmentId}/completion-proof`, cleaner.token, `life-proof-${suffix}`, { storageKey: `proof/${suffix}`, mimeType: 'image/jpeg', byteSize: 128 })).status, 201);
     assert.equal((await request('POST', `/bookings/${first.id}/start-payment-reconciliation`, admin.token, `life-recon-start-${suffix}`)).body.data.status, 'PAYMENT_RECONCILIATION');
     assert.equal((await request('POST', `/bookings/${first.id}/reconcile-payment`, admin.token, `life-recon-${suffix}`)).body.data.status, 'PAYMENT_RECONCILIATION');
     assert.equal((await request('POST', `/bookings/${first.id}/complete`, admin.token, `life-complete-${suffix}`)).body.data.status, 'COMPLETED');
@@ -69,7 +68,7 @@ test('booking lifecycle boundaries keep quote, payment, assignment, proof, no-sh
     const firstDb = await db.booking.findUniqueOrThrow({ where: { id: first.id }, include: { payments: true, assignments: { include: { events: true, proofs: true } } } });
     assert.equal(firstDb.payments[0].status, 'RECONCILED');
     assert.equal(firstDb.assignments[0].status, 'COMPLETED');
-    assert.equal(firstDb.assignments[0].proofs.length, 1);
+    assert.equal(firstDb.assignments[0].proofs.length, 0);
 
     const cash = await createBooking('2027-04-02T10:00:00Z', `life-cash-create-${suffix}`);
     assert.equal((await request('POST', `/bookings/${cash.id}/confirm`, customer.token, `life-cash-confirm-${suffix}`)).body.data.status, 'PRICE_CONFIRMED');

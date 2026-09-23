@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:home_clean_customer/application/booking/booking_controller.dart';
 import 'package:home_clean_customer/core/errors/app_exception.dart';
 import 'package:home_clean_customer/core/localization/app_localizations.dart';
+import 'package:home_clean_customer/domain/booking/booking_models.dart';
 import 'package:home_clean_customer/presentation/booking/booking_components.dart';
 import 'package:home_clean_customer/presentation/booking/booking_page.dart';
 import 'package:home_clean_customer/presentation/booking/booking_text.dart';
@@ -49,10 +50,24 @@ void main() {
   });
 
   testWidgets('on-the-way booking states that live location and ETA are unavailable', (tester) async {
-    final repo = fixture.BookingStub()..current = fixture.detailFixture(status: 'TEAM_ON_THE_WAY');
+    final repo = fixture.BookingStub()
+      ..current = fixture.detailFixture(status: 'TEAM_ON_THE_WAY')
+      ..nextTracking = const TeamTracking(active: true, etaStale: false, etaUnavailable: true);
     final c = BookingController(repo, fixture.CustomerStub()); await c.openDetail('booking-1');
     await tester.pumpWidget(app(BookingPage(controller: c, onHome: () {}))); await tester.pumpAndSettle();
     expect(find.text('Team location and arrival time are currently unavailable.'), findsOneWidget);
+  });
+
+  testWidgets('on-the-way booking shows latest location, ETA and stale warning', (tester) async {
+    final repo = fixture.BookingStub()
+      ..current = fixture.detailFixture(status: 'TEAM_ON_THE_WAY')
+      ..nextTracking = TeamTracking(active: true, latitude: 31.95, longitude: 35.91,
+        updatedAt: DateTime(2026), etaSeconds: 600, locationStale: true, etaStale: true, etaUnavailable: false);
+    final c = BookingController(repo, fixture.CustomerStub()); await c.openDetail('booking-1');
+    await tester.pumpWidget(app(BookingPage(controller: c, onHome: () {}))); await tester.pumpAndSettle();
+    expect(find.text('31.950000, 35.910000'), findsOneWidget);
+    expect(find.textContaining('About 10 min'), findsOneWidget);
+    expect(find.text('Location and ETA are stale'), findsOneWidget);
   });
 
   testWidgets('booking and payment states have English and Arabic labels', (tester) async {

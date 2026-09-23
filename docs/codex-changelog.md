@@ -1,5 +1,12 @@
 # Home Clean implementation changelog
 
+## 2026-09-23 — Phase 15 Batch 2 external-services continuation
+
+- Continued from the existing checkpoint without reverting or duplicating its Twilio, Tap, FCM/APNs, tracking, storage, mobile checkout, configuration or documentation work.
+- Added bounded Twilio/Tap retry behavior, Tap attempt/booking callback validation, precise FCM error/token handling and payload bounds, injected geocoder/routing providers, reassignment-safe tracking freshness, Customer live-location/ETA display, expiring private-object read capabilities and safe deletion.
+- Removed the obsolete completion-proof gate from final Booking completion while retaining optional historical metadata. No schema or migration changed.
+- Expanded fake-adapter, payment-reference, tracking-reassignment, Customer UI, object authorization/tamper/expiry/deletion and refund retry coverage. No real provider operation or production deployment occurred. Exact results and open provider decisions are in [Batch 2 report](phase15-batch2-external-services-report.md).
+
 ## 2026-09-22 — Phase 15 Batch 1 foundation
 
 - Added CI validation for backend, Prisma, isolated database regressions, Admin and both Flutter apps; added a secret/private-file scan and environment separation documentation. Staging/production runtime now requires nonlocal credentialed PostgreSQL with verified TLS and nonlocal credentialed Redis over TLS. Production still rejects the mock payment adapter.

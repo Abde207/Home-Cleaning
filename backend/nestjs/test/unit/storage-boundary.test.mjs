@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { privateObjectKey, validateObject, LocalPrivateObjectStore } from '../../dist/storage/object-storage.provider.js';
+import { privateObjectKey, validateObject, LocalPrivateObjectStore, PrivateObjectAccess } from '../../dist/storage/object-storage.provider.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -21,6 +21,19 @@ test('private local objects require their owner reference and reject invalid key
     await assert.rejects(store.get(object, randomUUID()), /OBJECT_ACCESS_DENIED/);
     await assert.rejects(store.get({ ...object, key: '../outside' }, owner), /OBJECT_KEY_INVALID/);
     assert.deepEqual(await store.get(object, owner), Buffer.from([255, 216, 255, 1]));
+    const access = new PrivateObjectAccess(store, 'test-only-private-object-secret-32-bytes');
+    await assert.rejects(async () => access.issue(object, randomUUID()), /OBJECT_ACCESS_DENIED/);
+    const token = access.issue(object, owner, 1);
+    assert.deepEqual(await access.read(token), Buffer.from([255, 216, 255, 1]));
+    await assert.rejects(access.read(`${token}tampered`), /OBJECT_ACCESS_INVALID/);
+    const originalNow = Date.now;
+    try {
+      Date.now = () => originalNow() + 2_000;
+      await assert.rejects(access.read(token), /OBJECT_ACCESS_EXPIRED/);
+    } finally { Date.now = originalNow; }
+    await store.delete(object.key);
+    await assert.rejects(store.get(object, owner), /ENOENT/);
+    await assert.rejects(store.delete('../outside'), /OBJECT_KEY_INVALID/);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 test('complaint objects accept images only and enforce content bytes', () => {

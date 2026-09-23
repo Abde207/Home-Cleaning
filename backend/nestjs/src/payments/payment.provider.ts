@@ -9,6 +9,7 @@ export type PaymentProviderEvent = {
   currency: string;
   payloadHash: string;
   attemptId?: string;
+  bookingReference?: string;
 };
 
 export type PaymentCreateInput = {
@@ -17,6 +18,7 @@ export type PaymentCreateInput = {
   amount: string;
   currency: string;
   bookingNumber: string;
+  customerPhone: string;
 };
 
 export type PaymentCreateResult = {
@@ -42,28 +44,47 @@ type TapObject = Record<string, any>;
 export class TapPaymentProvider implements PaymentProvider {
   readonly name = 'tap';
   constructor(private readonly secretKey: string, private readonly webhookUrl: string,
-    private readonly redirectUrl: string, private readonly request: typeof fetch = fetch) {}
+    private readonly redirectUrl: string, private readonly request: typeof fetch = fetch,
+    private readonly sleep: (milliseconds: number) => Promise<void> = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))) {}
 
   private async post(path: string, body: object): Promise<TapObject> {
-    let response: Response;
-    try {
-      response = await this.request(`https://api.tap.company/v2/${path}`, { method: 'POST',
-        signal: AbortSignal.timeout(10_000), headers: { authorization: `Bearer ${this.secretKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify(body) });
-    } catch { throw new Error('TAP_PROVIDER_UNAVAILABLE'); }
-    if (!response.ok) throw new Error('TAP_PROVIDER_REJECTED');
-    try { return await response.json() as TapObject; } catch { throw new Error('TAP_PROVIDER_INVALID_RESPONSE'); }
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      let response: Response;
+      try {
+        response = await this.request(`https://api.tap.company/v2/${path}`, { method: 'POST',
+          signal: AbortSignal.timeout(10_000), headers: { authorization: `Bearer ${this.secretKey}`, 'content-type': 'application/json' },
+          body: JSON.stringify(body) });
+      } catch {
+        if (attempt < 2) { await this.sleep(250); continue; }
+        throw new Error('TAP_PROVIDER_UNAVAILABLE');
+      }
+      if (response.status === 429 || response.status >= 500) {
+        if (attempt < 2) {
+          const retryAfter = Number(response.headers.get('retry-after'));
+          await this.sleep(Number.isFinite(retryAfter) ? Math.min(Math.max(retryAfter * 1000, 250), 2_000) : 500);
+          continue;
+        }
+        throw new Error(response.status === 429 ? 'TAP_PROVIDER_RATE_LIMITED' : 'TAP_PROVIDER_UNAVAILABLE');
+      }
+      if (!response.ok) throw new Error('TAP_PROVIDER_REJECTED');
+      try { return await response.json() as TapObject; } catch { throw new Error('TAP_PROVIDER_INVALID_RESPONSE'); }
+    }
+    throw new Error('TAP_PROVIDER_UNAVAILABLE');
   }
 
   async createPayment(input: PaymentCreateInput): Promise<PaymentCreateResult> {
     if (input.currency !== 'JOD' || !/^\d+(\.\d{1,2})?$/.test(input.amount) || Number(input.amount) <= 0)
       throw new Error('PAYMENT_CURRENCY_OR_AMOUNT_INVALID');
-    const result = await this.post('charges/', { amount: Number(input.amount), currency: 'JOD', threeDSecure: true,
+    const phone = /^\+962(\d{8,9})$/.exec(input.customerPhone);
+    if (!phone) throw new Error('TAP_CUSTOMER_PHONE_UNSUPPORTED');
+    const result = await this.post('charges/', { amount: Number(input.amount), currency: 'JOD', customer_initiated: true, threeDSecure: true,
       save_card: false, description: 'Home Clean booking', reference: { order: input.bookingNumber,
         transaction: input.attemptId, idempotent: input.attemptId }, source: { id: 'src_all' },
+      customer: { first_name: 'Home Clean', last_name: 'Customer', phone: { country_code: '962', number: phone[1] } },
       redirect: { url: this.redirectUrl }, post: { url: this.webhookUrl } });
-    if (typeof result.id !== 'string' || !result.id.startsWith('chg_') || result.currency !== 'JOD' ||
+    if (typeof result.id !== 'string' || !result.id.startsWith('chg_') || result.status !== 'INITIATED' || result.currency !== 'JOD' ||
         Number(result.amount) !== Number(input.amount) || result.reference?.idempotent !== input.attemptId ||
+        result.reference?.transaction !== input.attemptId || result.reference?.order !== input.bookingNumber ||
         typeof result.transaction?.url !== 'string' || !result.transaction.url.startsWith('https://'))
       throw new Error('TAP_PROVIDER_INVALID_RESPONSE');
     return { providerReference: result.id, checkoutUrl: result.transaction.url };
@@ -72,11 +93,11 @@ export class TapPaymentProvider implements PaymentProvider {
   async refund(input: { paymentId: string; refundId: string; amount: string; currency: string; providerReference: string }): Promise<PaymentRefundResult> {
     if (input.currency !== 'JOD' || !input.providerReference.startsWith('chg_') || !/^\d+(\.\d{1,2})?$/.test(input.amount)) throw new Error('REFUND_REFERENCE_INVALID');
     const result = await this.post('refunds/', { charge_id: input.providerReference, amount: Number(input.amount),
-      currency: 'JOD', reason: 'requested_by_customer', reference: { idempotent: input.refundId, transaction: input.paymentId },
+      currency: 'JOD', reason: 'requested_by_customer', reference: { idempotent: input.refundId, merchant: input.refundId, transaction: input.paymentId },
       post: { url: this.webhookUrl } });
     if (typeof result.id !== 'string' || !result.id.startsWith('re_') || result.status !== 'REFUNDED' ||
         result.charge_id !== input.providerReference || result.currency !== 'JOD' || Number(result.amount) !== Number(input.amount) ||
-        result.reference?.idempotent !== input.refundId)
+        result.reference?.idempotent !== input.refundId && result.reference?.merchant !== input.refundId)
       throw new Error('TAP_REFUND_PENDING_OR_FAILED');
     return { providerReference: result.id, eventId: `tap-refund:${result.id}`, transactionReference: result.id,
       payloadHash: createHash('sha256').update(JSON.stringify(result)).digest('hex') };
@@ -87,9 +108,10 @@ export class TapPaymentProvider implements PaymentProvider {
     let body: TapObject;
     try { body = JSON.parse(rawBody.toString('utf8')) as TapObject; } catch { throw new Error('TAP_WEBHOOK_INVALID'); }
     if (body.object !== 'charge' || typeof body.id !== 'string' || !body.id.startsWith('chg_') ||
-        !['CAPTURED', 'FAILED', 'DECLINED', 'CANCELLED'].includes(body.status) || body.currency !== 'JOD' ||
+        !['CAPTURED', 'ABANDONED', 'FAILED', 'DECLINED', 'CANCELLED', 'RESTRICTED', 'VOID', 'TIMEDOUT', 'UNKNOWN'].includes(body.status) || body.currency !== 'JOD' ||
         !Number.isFinite(Number(body.amount)) || typeof body.transaction?.created !== 'string' ||
-        typeof body.reference?.payment !== 'string' || typeof body.reference?.idempotent !== 'string') throw new Error('TAP_WEBHOOK_INVALID');
+        typeof body.reference?.payment !== 'string' || typeof body.reference?.transaction !== 'string' ||
+        typeof body.reference?.order !== 'string') throw new Error('TAP_WEBHOOK_INVALID');
     const amount = Number(body.amount).toFixed(3);
     const signed = `x_id${body.id}x_amount${amount}x_currency${body.currency}x_gateway_reference${body.reference.gateway ?? ''}` +
       `x_payment_reference${body.reference.payment}x_status${body.status}x_created${body.transaction.created}`;
@@ -98,7 +120,7 @@ export class TapPaymentProvider implements PaymentProvider {
     if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) throw new Error('TAP_WEBHOOK_INVALID');
     return { eventId: `${body.id}:${body.status}:${body.transaction.created}`, type: body.status === 'CAPTURED' ? 'SUCCEEDED' : 'FAILED',
       providerReference: body.id, transactionReference: body.id, amount, currency: 'JOD',
-      attemptId: typeof body.reference.idempotent === 'string' ? body.reference.idempotent : undefined,
+      attemptId: body.reference.transaction, bookingReference: body.reference.order,
       payloadHash: createHash('sha256').update(rawBody).digest('hex') };
   }
 }
@@ -149,6 +171,8 @@ export class MockPaymentProvider implements PaymentProvider {
       transactionReference: requiredString(body.transactionReference ?? body.paymentReference, 'transactionReference'),
       amount,
       currency,
+      ...(typeof body.attemptId === 'string' ? { attemptId: requiredString(body.attemptId, 'attemptId') } : {}),
+      ...(typeof body.bookingReference === 'string' ? { bookingReference: requiredString(body.bookingReference, 'bookingReference') } : {}),
       payloadHash: createHash('sha256').update(rawBody).digest('hex'),
     };
   }

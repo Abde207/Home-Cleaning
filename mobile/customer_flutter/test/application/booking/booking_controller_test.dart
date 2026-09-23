@@ -29,6 +29,8 @@ class BookingStub extends Fake implements BookingRepository {
   final keys = <String>[];
   BookingQuote nextQuote = quoteFixture();
   BookingDetail current = detailFixture();
+  TeamTracking nextTracking = TeamTracking(active: true, latitude: 31.95, longitude: 35.91,
+    updatedAt: DateTime.now(), etaSeconds: 600, etaStale: false, etaUnavailable: false);
   AppException? createError;
   Completer<void>? createGate;
   int createCount = 0;
@@ -45,6 +47,7 @@ class BookingStub extends Fake implements BookingRepository {
   @override Future<BookingPayment> startOnline(String bookingId, String key) async { calls.add('online'); keys.add(key); current = detailFixture(status: 'PAYMENT_PENDING', method: 'ONLINE', payments: const [BookingPayment(id: 'payment-1', method: 'ONLINE', status: 'PENDING')]); return const BookingPayment(id: 'payment-1', method: 'ONLINE', status: 'PENDING', checkoutUrl: 'https://mock-payments.invalid/checkout/1'); }
   @override Future<BookingPayment> retryOnline(String paymentId, String key) async { calls.add('retryOnline'); keys.add(key); current = detailFixture(status: 'PAYMENT_PENDING', method: 'ONLINE', payments: const [BookingPayment(id: 'payment-1', method: 'ONLINE', status: 'PENDING')]); return current.latestPayment!; }
   @override Future<BookingDetail> detail(String bookingId) async { calls.add('detail'); return current; }
+  @override Future<TeamTracking> tracking(String bookingId) async { calls.add('tracking'); return nextTracking; }
   @override Future<void> cancel(String bookingId, String key, {String? reason}) async { calls.add('cancel'); keys.add(key); current = detailFixture(status: 'CANCELLED'); }
 }
 
@@ -156,6 +159,15 @@ void main() {
     final c = BookingController(repo, CustomerStub()); await c.openDetail('booking-1');
     expect(c.detail?.canCancel, isTrue);
     await c.cancel(); expect(c.detail?.status, 'CANCELLED'); expect(repo.calls, contains('cancel'));
+  });
+
+  test('on-the-way detail loads the backend-authorized assigned team location', () async {
+    final repo = BookingStub()..current = detailFixture(status: 'TEAM_ON_THE_WAY');
+    final c = BookingController(repo, CustomerStub());
+    await c.openDetail('booking-1');
+    expect(repo.calls, contains('tracking'));
+    expect(c.tracking?.latitude, 31.95);
+    expect(c.tracking?.etaSeconds, 600);
   });
 
   test('past time is rejected before quote request', () async {

@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/database.module.js';
 import type { Actor } from '../auth/authorization.js';
 import type { AddressDto } from '../core/core.dto.js';
-import { DeterministicGeocodingProvider, type GeocodingProvider } from './location.provider.js';
+import { GEOCODING_PROVIDER, type GeocodingProvider } from './location.provider.js';
 
 const addressSelect = { id: true, label: true, addressText: true, latitude: true, longitude: true, isDefault: true, validationStatus: true, geocodedAt: true, geocodingProvider: true } as const;
 
@@ -14,8 +14,8 @@ function coordinates(latitude: number | undefined, longitude: number | undefined
 
 @Injectable()
 export class LocationService {
-  readonly geocoder: GeocodingProvider;
-  constructor(@Inject(PrismaService) private readonly db: PrismaService) { this.geocoder = new DeterministicGeocodingProvider(); }
+  constructor(@Inject(PrismaService) private readonly db: PrismaService,
+    @Inject(GEOCODING_PROVIDER) readonly geocoder: GeocodingProvider) {}
 
   private async resolve(dto: AddressDto) {
     coordinates(dto.latitude, dto.longitude);

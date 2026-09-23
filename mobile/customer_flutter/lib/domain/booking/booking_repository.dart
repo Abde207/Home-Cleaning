@@ -10,5 +10,6 @@ abstract interface class BookingRepository {
   Future<BookingPayment> startOnline(String bookingId, String key);
   Future<BookingPayment> retryOnline(String paymentId, String key);
   Future<BookingDetail> detail(String bookingId);
+  Future<TeamTracking> tracking(String bookingId);
   Future<void> cancel(String bookingId, String key, {String? reason});
 }
